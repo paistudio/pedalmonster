@@ -20,10 +20,11 @@ Feed to Claude Code in this order:
 **Checkpoint:** Full click-through prototype on mock data. Review UX end-to-end on an actual mobile device/viewport before Phase 2.
 
 ## Phase 2 — Backend (Ruby/Rails, built independently)
-1. Re-feed `02-data-model.md` to Claude Code as the source of truth for database schema + models
-2. Build models, migrations, associations
+Detailed plan lives in `18-backend-build-plan.md` — architecture decisions (Supabase Postgres as the database, JWT auth, Active Storage on Supabase Storage), migration order, and the step-by-step build sequence. Feed that doc to Claude Code for this phase; the summary below is just the checkpoint shape.
+1. Re-feed `02-data-model.md` + `18-backend-build-plan.md` to Claude Code as the source of truth for database schema + models
+2. Build models, migrations, associations against the Supabase-hosted Postgres database
 3. Build API endpoints per the endpoint list in `02-data-model.md`
-4. Build auth per `03-auth-user-profile.md` (JWT or session-based)
+4. Build auth per `03-auth-user-profile.md` (JWT)
 5. Build rank/points calculation logic (server-side, triggered on relevant actions)
 6. Write request specs (RSpec) covering each endpoint — test independently of the frontend, using tools like Postman/curl or specs
 

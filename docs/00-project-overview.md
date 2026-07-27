@@ -7,9 +7,10 @@ Built with the intent to later wrap into a native app (Capacitor or similar) onc
 
 ## Tech Stack
 - **Frontend:** Vue 3 (Composition API)
-- **Backend:** Ruby (Rails API mode recommended)
+- **Backend:** Ruby (Rails API mode)
+- **Database:** Supabase Postgres — Rails/ActiveRecord owns the schema via its own migrations; the frontend never talks to Supabase directly, only through the Rails API. See `18-backend-build-plan.md`
 - **Connection:** REST API between frontend and backend
-- **Hosting (suggested):** Vercel (frontend) + any Rails-friendly host for backend, or Supabase-adjacent stack if preferred later
+- **Hosting (suggested):** Vercel (frontend) + any Rails-friendly host for backend
 - **PWA:** manifest.json + service worker for installability, offline shell caching, push notifications (evaluate iOS Safari support at build time)
 
 ## Build Workflow (in order)
@@ -40,6 +41,7 @@ This project is built in **3 phases**, and these docs are split to match:
 | 15 | `15-global-search.md` | Global multi-type search |
 | 16 | `16-app-preloader-splash.md` | Logo build animation shown on every load/refresh |
 | 17 | `17-regional-location.md` | Location capture + nearby/popular-nearby algorithm layer across Home, Marketplace, Groups |
+| 18 | `18-backend-build-plan.md` | Phase 2 backend plan — Rails + Supabase Postgres architecture, migration order, build sequence |
 
 > `08` is intentionally vacant — it held the Events feature, which was cut from the product. Numbers are not reused, so later docs keep their existing filenames and references stay stable.
 
