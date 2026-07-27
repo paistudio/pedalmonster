@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0A0A" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pedal Monster" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <title>Pedal Monster</title>
+
+    <!-- Preloader: inlined here rather than mounted by the Vue app so it paints
+         before the bundle loads. See docs/16-app-preloader-splash.md -->
+    <style>
+      #pm-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0a0a0a;
+        transition: opacity 0.3s ease;
+      }
+
+      #pm-preloader.pm-done {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #pm-logo {
+        width: 150px;
+        height: auto;
+        animation: pm-idle 1.6s ease-in-out 1.25s infinite;
+      }
+
+      #pm-preloader.pm-done #pm-logo {
+        animation: none;
+      }
+
+      #pm-grip,
+      #pm-pedal,
+      .pm-finger {
+        transform-box: view-box;
+      }
+
+      /* Stage 1 — the pedal lands on its own. */
+      #pm-pedal {
+        transform-origin: 620px 900px;
+        animation: pm-pedal-in 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+      }
+
+      /* Stage 2 — the claw sweeps down and grips it. Staggered so the fingers
+         close as one hand instead of sliding in as separate pieces. */
+      .pm-finger {
+        transform-origin: 960px 600px;
+        animation: pm-claw-in 0.52s cubic-bezier(0.25, 0.8, 0.3, 1.05) both;
+      }
+
+      #pm-fa {
+        animation-delay: 0.34s;
+      }
+      #pm-fb {
+        animation-delay: 0.43s;
+      }
+      #pm-fc {
+        animation-delay: 0.52s;
+      }
+
+      /* Stage 3 — grip impact. */
+      #pm-grip {
+        transform-origin: 620px 700px;
+        animation: pm-settle 0.3s ease-out 0.95s both;
+      }
+
+      @keyframes pm-pedal-in {
+        from {
+          opacity: 0;
+          transform: translateY(70px) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @keyframes pm-claw-in {
+        from {
+          opacity: 0;
+          transform: translate(-90px, -230px) rotate(-19deg) scale(1.05);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @keyframes pm-settle {
+        0% {
+          transform: none;
+        }
+        45% {
+          transform: scale(1.045);
+        }
+        100% {
+          transform: none;
+        }
+      }
+
+      @keyframes pm-idle {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.72;
+        }
+      }
+
+      @keyframes pm-fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #pm-pedal,
+        .pm-finger,
+        #pm-grip {
+          animation: none;
+          opacity: 1;
+          transform: none;
+        }
+
+        #pm-logo {
+          animation: pm-fade-in 0.3s ease both;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="pm-preloader">%PRELOADER_LOGO%</div>
+    <div id="app"></div>
+    <script>
+      ;(function () {
+        var el = document.getElementById('pm-preloader')
+        if (!el) return
+
+        // Hold long enough for the build animation to play out, so a fast load
+        // never flashes the overlay for a few frames.
+        var MIN_MS = 1250
+        // Safety net: never trap the user behind the overlay if the app fails
+        // to boot and never signals ready.
+        var MAX_MS = 8000
+
+        var start = Date.now()
+        var dismissed = false
+
+        function remove() {
+          if (el.parentNode) el.parentNode.removeChild(el)
+        }
+
+        function dismiss() {
+          if (dismissed) return
+          dismissed = true
+          el.classList.add('pm-done')
+          el.addEventListener('transitionend', remove, { once: true })
+          setTimeout(remove, 600)
+        }
+
+        window.__pmAppReady = function () {
+          setTimeout(dismiss, Math.max(0, MIN_MS - (Date.now() - start)))
+        }
+
+        setTimeout(dismiss, MAX_MS)
+      })()
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
