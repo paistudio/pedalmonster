@@ -8,7 +8,8 @@ Built with the intent to later wrap into a native app (Capacitor or similar) onc
 ## Tech Stack
 - **Frontend:** Vue 3 (Composition API)
 - **Backend:** Ruby (Rails API mode)
-- **Database:** Supabase Postgres — Rails/ActiveRecord owns the schema via its own migrations; the frontend never talks to Supabase directly, only through the Rails API. See `18-backend-build-plan.md`
+- **Database:** Supabase Postgres — Rails/ActiveRecord owns the schema via its own migrations; the frontend never talks to Supabase directly for data, only through the Rails API
+- **Auth:** Supabase Auth — the one exception to the line above; the frontend authenticates directly against Supabase Auth (register/login/session/password reset), and Rails verifies the resulting JWT rather than issuing its own. See `18-backend-build-plan.md`
 - **Connection:** REST API between frontend and backend
 - **Hosting (suggested):** Vercel (frontend) + any Rails-friendly host for backend
 - **PWA:** manifest.json + service worker for installability, offline shell caching, push notifications (evaluate iOS Safari support at build time)

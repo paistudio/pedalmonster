@@ -5,11 +5,12 @@ This is the reference for BOTH the Vue prototype's mock data shape AND the real 
 ## Core Entities
 
 ### User
+Authentication (credential storage, login, session/refresh tokens, password reset) is owned entirely by **Supabase Auth**, not this table — see `18-backend-build-plan.md`. In the real backend, this entity is a `profiles` row whose `id` is a foreign key to Supabase's `auth.users.id` (created via a DB trigger on sign-up), holding only the app-specific fields below. `email` lives on `auth.users`, not `profiles` — shown here because the API still surfaces it (joined in) for the mock data shape and for display on Account Settings, but it's read-only from Rails' side; changing it goes through Supabase Auth directly, not `PATCH /api/users/:id`.
 | Field | Type | Notes |
 |---|---|---|
-| id | uuid | |
+| id | uuid | FK to Supabase `auth.users.id` in the real backend; a plain generated id in the Phase 1 mock |
 | username | string | |
-| email | string | used for login + shown/editable on Account Settings, see `03-auth-user-profile.md` |
+| email | string | owned by Supabase Auth; used for login + shown (read-only via this API) on Account Settings, see `03-auth-user-profile.md` |
 | avatar_url | string | |
 | bio | string | optional |
 | location | string | city-level, display label only |
@@ -201,7 +202,7 @@ Since a comment is just a `Post` row (`type=comment`, `parent_id` set), the `/co
 - `POST /api/posts/:id/like`, `DELETE /api/posts/:id/like` — same endpoint for liking a top-level post or a comment, since both are `Post` rows; also powers the drawer's Liked screen via `GET /api/users/:id/likes` (which excludes `type=comment` rows)
 - `GET /api/groups`, `POST /api/groups`, `POST /api/groups/:id/join`
 - `GET /api/users/:id` — profile + rank
-- `PATCH /api/users/:id` — account info update (username, email, location, location_city_id); `POST /api/auth/password` — change password
+- `PATCH /api/users/:id` — account info update (username, bio, location, location_city_id, avatar) — **not** `email` or password, those go through Supabase Auth directly from the frontend, see below
 - `GET /api/cities` — canonical city reference list, powers the location picker (`17-regional-location.md`)
 - `POST /api/reports` — Report a problem submission (category + description), or a per-post report (category + `post_id`, no description required) from a post's three-dot menu
 - `GET /api/tags/:name`, `POST /api/tags/:name/follow`, `DELETE /api/tags/:name/follow` — topic detail + follow/unfollow (`13-tags-and-topic-discovery.md`); `GET /api/users/:id/followed-tags` powers the drawer's Topics list
@@ -209,4 +210,4 @@ Since a comment is just a `Post` row (`type=comment`, `parent_id` set), the `/co
 - `GET /api/chats` — thread list for the inbox Chat tab (other participant, last message preview/time, unread flag from `ChatThreadRead`)
 - `GET /api/chats/:userId/messages`, `POST /api/chats/:userId/messages` — thread keyed by the other participant's user id, matching `/chat/:userId` in the frontend; message body may be blank if `media_urls` is non-empty
 - `POST /api/chats/:userId/read` — updates the current user's `ChatThreadRead.last_read_at` for that thread
-- Auth endpoints: `POST /api/auth/register`, `POST /api/auth/login`, session/token handling (finalize approach in 03)
+- **No Rails auth endpoints.** Registration, login, logout, session refresh, and password reset are all handled by **Supabase Auth**'s client SDK directly from the frontend (Phase 3) — every other endpoint above requires a valid Supabase-issued JWT (`Authorization: Bearer`), verified by Rails on each request. See `18-backend-build-plan.md`.

@@ -24,7 +24,7 @@ Detailed plan lives in `18-backend-build-plan.md` — architecture decisions (Su
 1. Re-feed `02-data-model.md` + `18-backend-build-plan.md` to Claude Code as the source of truth for database schema + models
 2. Build models, migrations, associations against the Supabase-hosted Postgres database
 3. Build API endpoints per the endpoint list in `02-data-model.md`
-4. Build auth per `03-auth-user-profile.md` (JWT)
+4. Build Supabase JWT verification (not Rails-issued auth) per `03-auth-user-profile.md`/`18-backend-build-plan.md` — Supabase Auth owns registration/login/password reset, Rails only verifies tokens
 5. Build rank/points calculation logic (server-side, triggered on relevant actions)
 6. Write request specs (RSpec) covering each endpoint — test independently of the frontend, using tools like Postman/curl or specs
 

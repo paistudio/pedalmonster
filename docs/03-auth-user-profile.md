@@ -1,8 +1,8 @@
 # Auth, Profile & Rank System
 
 ## Auth (MVP scope)
-- Email/password registration + login (keep simple for MVP — social login can come later)
-- Session/token-based auth (JWT recommended for clean separation between Vue frontend and Rails API)
+- Email/password registration + login (keep simple for MVP — social login can come later), handled by **Supabase Auth** — the Vue frontend uses its client SDK directly for register/login/logout/session refresh/password reset, not a Rails endpoint. Rails only ever verifies the resulting JWT on API requests. See `18-backend-build-plan.md` for the full split.
+- A `profiles` row (this doc's "User" entity minus credentials) is created automatically on sign-up via a Supabase DB trigger, not a Rails registration step
 - Basic profile setup on first login: username, avatar, city/location — location is set via the shared location picker (city search + an optional "Use my location" GPS button), not free text, see `17-regional-location.md`
 
 ## Profile Screen
@@ -24,8 +24,8 @@ A separate, lighter screen from the Profile tab above — `/profile/:id`, reache
 ## Account Settings
 Reached via the drawer's "Settings" item (`12-top-app-shell-and-menu.md`). A single screen, not a nested settings tree, with three sections:
 - **Profile photo**: the only entry point in the app for changing the current user's own avatar — a tappable circular preview with a small camera-icon badge overlaid at its bottom-right corner, plus a "Change photo" text link beneath it. Tapping either opens the device's photo picker; the selected image replaces `currentUser.avatar_url` immediately (no separate save step, unlike the fields below). Mock-only in Phase 1 (object URL, not uploaded anywhere) — see the note below.
-- **Account information**: username, email, location — editable fields, saved with a single "Save changes" action; location is set via the shared location picker (city search + optional "Use my location" GPS button), not a free-text field, see `17-regional-location.md`
-- **Change password**: current password, new password, confirm new password — validated locally (new/confirm must match, current password required), submitted with its own "Update password" action separate from the account-info save
+- **Account information**: username, email, location — editable fields, saved with a single "Save changes" action; location is set via the shared location picker (city search + optional "Use my location" GPS button), not a free-text field, see `17-regional-location.md`. In Phase 3: username/location save via the Rails API (`PATCH /api/users/:id`), but `email` is Supabase-Auth-owned — an email edit goes through `supabase.auth.updateUser({ email })` directly (which sends its own confirmation email) even though it's presented as one form. This is a UI-only grouping, not one backend call.
+- **Change password**: current password, new password, confirm new password — validated locally (new/confirm must match, current password required), submitted with its own "Update password" action separate from the account-info save. In Phase 3: Supabase Auth's `updateUser({ password })` doesn't itself check the current password, so "current password required" needs an explicit re-auth step first (re-sign-in with the current password via Supabase Auth) before calling `updateUser` — flagging this now so it isn't missed when this screen is wired up.
 
 All three sections are mock-only in Phase 1 — they update `currentUser` in local state (the photo swap shows immediately with no confirmation toast, the two fields-based sections show a success confirmation after "Save"); there is no real auth/password/upload backend until Phase 2 (`11-build-sequence.md`).
 

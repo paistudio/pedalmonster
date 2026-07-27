@@ -19,7 +19,8 @@ Then check `docs/11-build-sequence.md` to determine which phase and which doc to
 ## Tech Stack (do not deviate)
 - **Frontend:** Vue 3, Composition API
 - **Backend:** Ruby (Rails API mode)
-- **Database:** Supabase Postgres — accessed only by the Rails backend via ActiveRecord/migrations, never directly by the frontend. See `docs/18-backend-build-plan.md`
+- **Database:** Supabase Postgres — accessed only by the Rails backend via ActiveRecord/migrations, never directly by the frontend
+- **Auth:** Supabase Auth — the one exception to the rule above; the Vue frontend authenticates directly against Supabase Auth's client SDK (register/login/session/password reset), and Rails verifies the resulting JWT on every API request rather than issuing its own. See `docs/18-backend-build-plan.md`
 - **Connection:** REST API between the two — kept as separate, independently testable codebases
 - **PWA:** installable manifest + service worker, mobile-first only (no desktop layout work)
 
