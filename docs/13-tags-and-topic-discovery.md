@@ -35,3 +35,8 @@ Allow users to tap tags or topics from posts and follow them, then view a dedica
 - Use a single reusable tag chip component so the same interaction works in feed cards, post detail views, and topic detail screens
 - For MVP, keep follow state local in mock state and do not introduce a full backend relationship model yet
 - If the topic has no dedicated description, show a short fallback copy and a “Recent posts” section instead of a blank state
+
+## Backend (Phase 3 — Supabase)
+- `posts.tags` is populated automatically, server-side — a user just types `#word` anywhere in a post's text; `extract_post_tags()` (a `BEFORE INSERT OR UPDATE` trigger, see `docs/19-supabase-only-backend-plan.md`) pulls every `#word` token into the `tags` array. There's no separate tag-picker UI; the hashtag *is* the tagging mechanism, same pattern as `@mention` extraction on comments.
+- Topic Detail's related-posts list and the drawer's "N new" badge both match a topic against `posts.tags` exactly (case-insensitively) — not a raw substring search against the post's title/description, which would false-positive on any post whose text happens to contain the tag name as a word.
+- **Following a tag notifies you of new posts using it.** `notify_followers_on_new_tagged_post()` (`AFTER INSERT` on `posts`) creates a notification for every follower of a tag used on a newly created post (never for the poster's own tags-they-also-follow). A post matching two followed topics sends two notifications — one per matched topic, not deduped down to one.

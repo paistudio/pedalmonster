@@ -30,6 +30,7 @@ Location/"Nearby" also does NOT get its own nav slot — per `17-regional-locati
 
 ## PWA Setup
 - `manifest.json`: app name, icons (multiple sizes), theme color and background color both `#0A0A0A` (the near-black canvas — the old brown/off-white pairing from `01-brand-style-guide.md` is superseded by `design.md`), `display: standalone`
+- Favicon (`frontend/public/favicon.svg`) and every home-screen/install icon (`frontend/public/icons/icon-{180,192,512}.png`, referenced by the `apple-touch-icon` link tag and the PWA manifest respectively) are the `pedalmonster-logo-icon.svg` mark centered on a `#0A0A0A` square — same mark as the app preloader (`16-app-preloader-splash.md`) and the avatar placeholder (`design.md`'s Avatar Placeholder). The PNGs were rasterized from that same source at each exact pixel size, not scaled from one single size, so they stay crisp at iOS's home-screen icon size in particular.
 - Service worker: cache app shell + static assets for offline resilience (useful since this is a community used outdoors/on rides where connectivity may be spotty)
 - "Add to Home Screen" prompt handling
 - Splash/loading screen: the OS-level PWA splash comes from the manifest above, but the app also has its own in-page logo preloader that covers every load and refresh (browser tab included) — see `16-app-preloader-splash.md`. Don't build a second loading overlay.

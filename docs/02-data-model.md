@@ -38,10 +38,10 @@ Canonical reference list backing `location_city_id` on User, Post, and Group —
 | user_id | uuid | FK to User |
 | type | enum | `listing` / `community_post` / `group_post` / `comment` — a comment is a post whose `type` is `comment` |
 | parent_id | uuid | FK to Post, nullable — set only when `type=comment`; the post (or another comment, once nested replies are supported) this one is a reply to. Always null for `listing`/`community_post`/`group_post` |
-| title | string | optional, only meaningful for `listing`/`group_post` — never used for `community_post` or `comment`, see `06-post-creation-flow.md` |
-| description | text | the body text: post caption for `listing`/`community_post`/`group_post`, or the comment text when `type=comment` (may contain `@username` mention tokens; may be blank for a comment if `media_urls` is non-empty) |
+| title | string | optional, only meaningful for `listing` — never used for `community_post`, `group_post`, or `comment`, see `06-post-creation-flow.md`. (`group_post` used to have its own required title field; removed so a Group Post is identical to a Post (Community) except for which group it's posted to.) |
+| description | text | the body text: post caption for `listing`/`community_post`/`group_post`, or the comment text when `type=comment` (may contain `@username` mention tokens and `#hashtag` tokens; may be blank for a comment if `media_urls` is non-empty) |
 | media_urls | array\<string\> | 1–5 photos for a top-level post; 0–4 for a comment, see `05-home-feed.md` |
-| tags | array\<string\> | topic/tag labels shown as `#tagname` chips on the post; freeform strings, not a normalized FK — see Tag below for the follow-side of this |
+| tags | array\<string\> | topic/tag labels shown as `#tagname` chips on the post; freeform strings, not a normalized FK — see Tag below for the follow-side of this. **Populated automatically** from `#word` tokens found in `description` (`extract_post_tags()` trigger, top-level posts only — not comments), the same way `mentioned_user_ids` below is derived from `@word` tokens; there's no separate manual tag-picker UI |
 | mentioned_user_ids | array\<uuid\> | derived, populated for `type=comment` only — FK to User, extracted from `@username` tokens in `description` at creation time (only usernames matching a real account count); not yet wired to a push/inbox notification |
 | location | string | optional, `listing`/`group_post` only, display label only |
 | location_city_id | uuid | FK to City, nullable — populated for listings in MVP, null otherwise, see `17-regional-location.md` |
@@ -127,6 +127,7 @@ Not a separate table backing `Post.tags` (those stay freeform strings on the pos
 - Surfaced in the drawer's Topics list (`12-top-app-shell-and-menu.md`) and drives the follow/unfollow toggle + follower count on Topic Detail (`13-tags-and-topic-discovery.md`).
 - **Follower count** on Topic Detail = `count(TagFollow where tag_name = :tag)`.
 - **"N new" badge** next to a followed topic in the drawer = `count(Post where :tag in tags and created_at >= now - 3 days)` — a fixed 3-day rolling window in MVP, not a per-user `last_viewed_at` watermark (no such field exists yet; don't add one without a doc update first).
+- **Following a tag creates a Notification for every subsequent post that uses it** (`13-tags-and-topic-discovery.md`'s Backend section) — one Notification row per follower per matching post, never for the poster's own follows.
 
 ### Notification
 Backs the inbox's Notifications tab (`14-inbox-notifications-and-chat.md`). One row per event; `post_id`/`group_id` are mutually exclusive depending on what triggered it.

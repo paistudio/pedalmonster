@@ -9,6 +9,13 @@ const props = defineProps({
   // Storage path prefix (docs/19-supabase-only-backend-plan.md's `media` bucket) — keeps
   // uploads from different features browsable/cleanable separately in the bucket.
   folder: { type: String, default: 'uploads' },
+  // The `media` bucket's storage.objects insert policy requires `auth.role() = 'authenticated'`
+  // (20260728000006_storage_media_bucket_policies.sql) — a picker used before the caller has a
+  // session (RegisterView's avatar field, picked before signUp() runs) would have every upload
+  // silently 403 and get dropped by the .catch() below. Set this false to only ever hold local
+  // blob previews + the raw File objects; the parent calls uploadPending() once a session
+  // actually exists.
+  autoUpload: { type: Boolean, default: true },
 })
 const emit = defineEmits(['update:modelValue', 'update:uploading'])
 
@@ -16,10 +23,38 @@ const { uploadFile } = useUpload()
 const cameraInput = ref(null)
 const galleryInput = ref(null)
 const pendingCount = ref(0)
+const filesByBlobUrl = new Map()
 
 function setPending(delta) {
   pendingCount.value += delta
   emit('update:uploading', pendingCount.value > 0)
+}
+
+function upload(file, blobUrl) {
+  setPending(1)
+  return uploadFile(file, props.folder)
+    .then((realUrl) => {
+      const idx = props.modelValue.indexOf(blobUrl)
+      if (idx !== -1) {
+        const next = [...props.modelValue]
+        next[idx] = realUrl
+        emit('update:modelValue', next)
+      }
+      filesByBlobUrl.delete(blobUrl)
+    })
+    .catch(() => {
+      const idx = props.modelValue.indexOf(blobUrl)
+      if (idx !== -1) {
+        const next = [...props.modelValue]
+        next.splice(idx, 1)
+        emit('update:modelValue', next)
+      }
+      filesByBlobUrl.delete(blobUrl)
+    })
+    .finally(() => {
+      URL.revokeObjectURL(blobUrl)
+      setPending(-1)
+    })
 }
 
 function onFilesSelected(e) {
@@ -36,38 +71,33 @@ function onFilesSelected(e) {
 
   selected.forEach((file, i) => {
     const blobUrl = blobUrls[i]
-    setPending(1)
-    uploadFile(file, props.folder)
-      .then((realUrl) => {
-        const idx = props.modelValue.indexOf(blobUrl)
-        if (idx !== -1) {
-          const next = [...props.modelValue]
-          next[idx] = realUrl
-          emit('update:modelValue', next)
-        }
-      })
-      .catch(() => {
-        const idx = props.modelValue.indexOf(blobUrl)
-        if (idx !== -1) {
-          const next = [...props.modelValue]
-          next.splice(idx, 1)
-          emit('update:modelValue', next)
-        }
-      })
-      .finally(() => {
-        URL.revokeObjectURL(blobUrl)
-        setPending(-1)
-      })
+    if (props.autoUpload) {
+      upload(file, blobUrl)
+    } else {
+      filesByBlobUrl.set(blobUrl, file)
+    }
   })
 }
 
 function removePhoto(index) {
   const url = props.modelValue[index]
-  if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+  if (url.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+    filesByBlobUrl.delete(url)
+  }
   const next = [...props.modelValue]
   next.splice(index, 1)
   emit('update:modelValue', next)
 }
+
+// For autoUpload=false pickers: uploads every still-pending file now (called once the caller
+// has a real session, e.g. right after RegisterView's signUp() resolves). Resolves once every
+// upload has settled, so modelValue holds only real URLs (or has dropped any that failed).
+async function uploadPending() {
+  await Promise.all([...filesByBlobUrl.entries()].map(([blobUrl, file]) => upload(file, blobUrl)))
+}
+
+defineExpose({ uploadPending })
 </script>
 
 <template>

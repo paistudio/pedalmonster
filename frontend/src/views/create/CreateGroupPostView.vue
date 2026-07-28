@@ -18,7 +18,6 @@ const groupId = ref(myGroups.value[0]?.id ?? '')
 watch(myGroups, (list) => {
   if (!groupId.value && list.length) groupId.value = list[0].id
 })
-const title = ref('')
 const description = ref('')
 const photos = ref([])
 const isUploading = ref(false)
@@ -27,9 +26,8 @@ const errors = reactive({})
 
 function validate() {
   errors.groupId = groupId.value ? '' : 'Pick a group'
-  errors.title = title.value.trim() ? '' : 'Add a short title'
-  errors.description = description.value.trim() ? '' : 'Write something for the group'
-  return !errors.groupId && !errors.title && !errors.description
+  errors.description = description.value.trim() ? '' : 'Write something to post'
+  return !errors.groupId && !errors.description
 }
 
 async function submit() {
@@ -37,7 +35,7 @@ async function submit() {
   if (!validate()) return
   await store.createPost({
     type: 'group_post',
-    title: title.value.trim(),
+    title: null,
     description: description.value.trim(),
     media_urls: photos.value,
     location: null,
@@ -70,23 +68,12 @@ async function submit() {
         </div>
 
         <div class="field">
-          <label class="field-label">Title</label>
-          <input
-            v-model="title"
-            class="field-input"
-            :class="{ 'field-input--error': errors.title }"
-            placeholder="e.g. Last week's ride recap"
-          />
-          <span v-if="errors.title" class="field-error">{{ errors.title }}</span>
-        </div>
-
-        <div class="field">
-          <label class="field-label">Body</label>
+          <label class="field-label">What's on your mind?</label>
           <textarea
             v-model="description"
             class="field-textarea"
             :class="{ 'field-textarea--error': errors.description }"
-            placeholder="Write something for the group..."
+            placeholder="Ask a question, share a tip, post an update..."
           />
           <span v-if="errors.description" class="field-error">{{ errors.description }}</span>
         </div>

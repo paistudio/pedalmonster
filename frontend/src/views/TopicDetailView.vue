@@ -14,10 +14,13 @@ const { state, toggleTagFollow } = useAppState()
 
 const tagName = computed(() => route.params.tag || 'Topic')
 const isFollowing = computed(() => state.followedTags.includes(tagName.value))
+// Matches App.vue's newPostCountForTag: an exact (case-insensitive) match against the post's
+// own tags array, populated server-side by extract_post_tags() from `#hashtag` tokens in the
+// post text — not a raw substring search, which would wrongly match any post whose text
+// happens to contain the tag name as a word.
 const relatedPosts = computed(() =>
   feedStore.posts.filter((post) =>
-    (post.title || '').toLowerCase().includes(tagName.value.toLowerCase()) ||
-    post.description.toLowerCase().includes(tagName.value.toLowerCase()),
+    (post.tags || []).some((tag) => tag.toLowerCase() === tagName.value.toLowerCase()),
   ),
 )
 

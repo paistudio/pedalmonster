@@ -7,6 +7,7 @@ import { useFeedStore } from '../composables/useFeedStore'
 import { useChatStore } from '../composables/useChatStore'
 import { useAuth } from '../composables/useAuth'
 import { formatPrice } from '../utils/formatters'
+import { avatarSrc } from '../utils/avatar'
 import PhotoPicker from '../components/create/PhotoPicker.vue'
 
 const route = useRoute()
@@ -59,7 +60,7 @@ function send() {
       <button class="back-btn" aria-label="Back" @click="router.back()">
         <Icon icon="iconoir:arrow-left" width="20" height="20" />
       </button>
-      <img class="avatar" :src="otherUser.avatar_url" :alt="otherUser.username" />
+      <img class="avatar" :src="avatarSrc(otherUser)" :alt="otherUser.username" />
       <span class="chat-username">{{ otherUser.username }}</span>
     </header>
 

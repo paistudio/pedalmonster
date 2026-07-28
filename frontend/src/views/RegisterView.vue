@@ -12,14 +12,14 @@ import { useCities, getCityById } from '../composables/useCities'
 useCities()
 
 const router = useRouter()
-const { signUp } = useAuth()
+const { signUp, updateAvatar } = useAuth()
 const { state: locationState, openPicker, closePicker, setManualCity } = useUserLocation()
 
 const username = ref('')
 const email = ref('')
 const password = ref('')
 const avatar = ref([])
-const isUploadingAvatar = ref(false)
+const avatarPicker = ref(null)
 const errors = reactive({})
 const submitting = ref(false)
 const needsEmailConfirmation = ref(false)
@@ -35,7 +35,7 @@ function validate() {
 }
 
 async function submit() {
-  if (!validate() || submitting.value || isUploadingAvatar.value) return
+  if (!validate() || submitting.value) return
   submitting.value = true
   errors.form = ''
 
@@ -44,18 +44,28 @@ async function submit() {
     password: password.value,
     username: username.value.trim(),
     location_city_id: locationState.resolvedCityId,
-    avatarUrl: avatar.value[0] ?? null,
   })
 
-  submitting.value = false
   if (error) {
     errors.form = error.message
+    submitting.value = false
     return
   }
   if (pending) {
     needsEmailConfirmation.value = true
+    submitting.value = false
     return
   }
+
+  // The avatar picker only holds a local blob preview + the raw file until now — uploading it
+  // needed a real session, which signUp() above just created. See PhotoPicker's autoUpload doc
+  // comment: uploading before this point would 403 against the `media` bucket's policy.
+  await avatarPicker.value?.uploadPending()
+  if (avatar.value[0] && !avatar.value[0].startsWith('blob:')) {
+    await updateAvatar(avatar.value[0])
+  }
+
+  submitting.value = false
   router.replace('/')
 }
 </script>
@@ -73,7 +83,7 @@ async function submit() {
       <div class="form-step">
         <div class="field">
           <label class="field-label">Profile photo (optional)</label>
-          <PhotoPicker v-model="avatar" v-model:uploading="isUploadingAvatar" :max="1" folder="avatars" />
+          <PhotoPicker ref="avatarPicker" v-model="avatar" :auto-upload="false" :max="1" folder="avatars" />
         </div>
 
         <div class="field">
@@ -130,7 +140,7 @@ async function submit() {
 
       <footer class="form-footer">
         <button class="btn btn-secondary" @click="router.push('/login')">Cancel</button>
-        <button class="btn btn-primary" :disabled="submitting || isUploadingAvatar" @click="submit">
+        <button class="btn btn-primary" :disabled="submitting" @click="submit">
           {{ submitting ? 'Creating…' : 'Create Account' }}
         </button>
       </footer>

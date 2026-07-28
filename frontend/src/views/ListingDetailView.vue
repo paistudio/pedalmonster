@@ -9,6 +9,7 @@ import { useUserLocation } from '../composables/useUserLocation'
 import { useAuth } from '../composables/useAuth'
 import { formatPrice } from '../utils/formatters'
 import { distanceBetweenCities, formatDistance } from '../utils/geo'
+import { avatarSrc } from '../utils/avatar'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,7 +71,7 @@ const commentCount = computed(() => post.value?.comment_count ?? 0)
         <p class="description">{{ post.description }}</p>
 
         <button class="seller" @click="openSellerProfile">
-          <img class="avatar" :src="post.author.avatar_url" :alt="post.author.username" />
+          <img class="avatar" :src="avatarSrc(post.author)" :alt="post.author.username" />
           <div class="seller-meta">
             <div class="seller-line">
               <span class="username">{{ post.author.username }}</span>

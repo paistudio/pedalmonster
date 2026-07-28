@@ -7,11 +7,11 @@ import { useUserLocation } from '../composables/useUserLocation'
 import { useCities, getCityById } from '../composables/useCities'
 import { useAuth } from '../composables/useAuth'
 import { useUpload } from '../composables/useUpload'
-import { supabase } from '../lib/supabase'
+import { avatarSrc } from '../utils/avatar'
 
 const router = useRouter()
 const { state: locationState, openPicker, closePicker, setManualCity } = useUserLocation()
-const { state: authState } = useAuth()
+const { state: authState, updateAvatar } = useAuth()
 const { uploadFile } = useUpload()
 useCities()
 
@@ -23,11 +23,7 @@ async function onAvatarSelected(e) {
   e.target.value = ''
   if (!file || !authState.currentUser) return
   const avatarUrl = await uploadFile(file, 'avatars')
-  const { error } = await supabase
-    .from('profiles')
-    .update({ avatar_url: avatarUrl })
-    .eq('id', authState.currentUser.id)
-  if (!error) authState.currentUser.avatar_url = avatarUrl
+  await updateAvatar(avatarUrl)
 }
 
 const account = reactive({ username: '', email: '' })
@@ -136,7 +132,7 @@ async function updatePassword() {
     <div class="settings-body">
       <section class="settings-section avatar-section">
         <button class="avatar-trigger" aria-label="Change profile photo" @click="avatarInput.click()">
-          <img class="avatar-preview" :src="currentUser.avatar_url" :alt="currentUser.username" />
+          <img class="avatar-preview" :src="avatarSrc(currentUser)" :alt="currentUser.username" />
           <span class="avatar-edit-badge">
             <Icon icon="iconoir:camera" width="14" height="14" />
           </span>

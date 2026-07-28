@@ -530,6 +530,9 @@ Within a row:
 ### Photo Lightbox
 `{components.photo-lightbox}` — tapping a post image (anywhere it appears, feed or detail) opens a fullscreen viewer: `rgba(10, 10, 10, 0.95)` overlay, swipeable horizontally if the post has multiple photos (scroll-snap, synced dot indicator), single circular close button top-right — translucent dark fill for contrast, **no border** (icon buttons never have one, see Icon Library above). Tapping the backdrop (not the image) closes it.
 
+### Avatar Placeholder
+`{components.avatar-placeholder}` — any avatar (feed row, profile, comment, chat, member list, mention dropdown) falls back to the Pedal Monster mark (the same mark used in the app preloader/header) centered on a `{colors.canvas-mid}` (#363a3f) filled circle when the user has no `avatar_url`, instead of a broken image or an empty element. Implemented once as a static asset (`frontend/public/avatar-placeholder.svg`) plus a shared `avatarSrc(user)` helper (`frontend/src/utils/avatar.js`) — every avatar `<img>` in the app goes through it rather than reading `avatar_url` directly.
+
 ## Do's and Don'ts
 
 ### Do

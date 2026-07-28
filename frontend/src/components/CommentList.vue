@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useCommentStore } from '../composables/useCommentStore'
 import { formatRelativeTime } from '../utils/formatters'
+import { avatarSrc } from '../utils/avatar'
 
 const PREVIEW_COUNT = 5
 
@@ -64,7 +65,7 @@ function confirmDelete(comment) {
     <div v-for="comment in visibleComments" :key="comment.id" class="comment-row">
       <img
         class="avatar avatar--sm"
-        :src="comment.author?.avatar_url"
+        :src="avatarSrc(comment.author)"
         :alt="comment.author?.username"
       />
       <div class="comment-content">

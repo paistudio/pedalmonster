@@ -6,6 +6,7 @@ import PostCard from '../components/PostCard.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useGroupStore } from '../composables/useGroupStore'
 import { useAuth } from '../composables/useAuth'
+import { avatarSrc } from '../utils/avatar'
 
 const PROFILE_TABS = [
   { value: 'posts', label: 'My Posts' },
@@ -27,7 +28,7 @@ const myGroups = computed(() => groupStore.groups.filter((group) => groupStore.i
   <div class="profile">
     <div class="profile-scroll">
       <header class="profile-header">
-        <img class="avatar" :src="currentUser.avatar_url" :alt="currentUser.username" />
+        <img class="avatar" :src="avatarSrc(currentUser)" :alt="currentUser.username" />
         <div class="identity">
           <h1 class="username">{{ currentUser.username }}</h1>
           <p v-if="currentUser.location" class="location">{{ currentUser.location }}</p>

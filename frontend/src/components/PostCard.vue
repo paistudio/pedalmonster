@@ -8,6 +8,7 @@ import { useFeedStore } from '../composables/useFeedStore'
 import { useAppState } from '../composables/useAppState'
 import { useGroupStore } from '../composables/useGroupStore'
 import { formatRelativeTime, formatPrice } from '../utils/formatters'
+import { avatarSrc } from '../utils/avatar'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -109,7 +110,7 @@ const isMember = computed(() =>
     <header class="post-header">
       <img
         class="avatar"
-        :src="post.author.avatar_url"
+        :src="avatarSrc(post.author)"
         :alt="post.author.username"
         @click.stop="router.push(`/profile/${post.author.id}`)"
       />

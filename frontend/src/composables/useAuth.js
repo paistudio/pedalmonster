@@ -41,23 +41,30 @@ async function init() {
   state.initialized = true
 }
 
-async function signUp({ email, password, username, location_city_id, avatarUrl }) {
+async function signUp({ email, password, username, location_city_id }) {
   const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) return { error }
 
   // A placeholder profiles row already exists (handle_new_user trigger) — overwrite it with
   // the real chosen values from the registration form. Only possible when signUp returned a
   // session immediately (email confirmation disabled) — otherwise there's nothing to update
-  // yet since the JWT-authenticated RLS policy needs a live session.
+  // yet since the JWT-authenticated RLS policy needs a live session. Avatar is set separately
+  // via updateAvatar() below, once a session exists — an avatar picked *during* this call has
+  // no session yet, so a direct Storage upload at that point would 403 against the `media`
+  // bucket's "authenticated only" insert policy.
   if (data.session) {
-    await supabase
-      .from('profiles')
-      .update({ username, location_city_id, avatar_url: avatarUrl })
-      .eq('id', data.user.id)
+    await supabase.from('profiles').update({ username, location_city_id }).eq('id', data.user.id)
     await loadProfile(data.user.id)
   }
 
   return { data, needsEmailConfirmation: !data.session }
+}
+
+async function updateAvatar(avatarUrl) {
+  if (!state.currentUser) return { error: new Error('Not signed in') }
+  const { error } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', state.currentUser.id)
+  if (!error) state.currentUser.avatar_url = avatarUrl
+  return { error }
 }
 
 async function signIn({ email, password }) {
@@ -70,5 +77,5 @@ async function signOut() {
 }
 
 export function useAuth() {
-  return { state, init, signUp, signIn, signOut }
+  return { state, init, signUp, signIn, signOut, updateAvatar }
 }

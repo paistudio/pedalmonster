@@ -6,6 +6,7 @@ import PostCard from '../components/PostCard.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useAuth } from '../composables/useAuth'
 import { supabase } from '../lib/supabase'
+import { avatarSrc } from '../utils/avatar'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,7 +55,7 @@ function openChat() {
 
     <div class="profile-scroll">
       <div class="identity">
-        <img class="avatar" :src="user.avatar_url" :alt="user.username" />
+        <img class="avatar" :src="avatarSrc(user)" :alt="user.username" />
         <h1 class="username">{{ user.username }}</h1>
         <p v-if="user.location" class="location">
           <Icon icon="iconoir:map-pin" width="13" height="13" />

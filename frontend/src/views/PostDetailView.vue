@@ -12,6 +12,7 @@ import { useCommentStore } from '../composables/useCommentStore'
 import { useAppState } from '../composables/useAppState'
 import { useGroupStore } from '../composables/useGroupStore'
 import { formatRelativeTime } from '../utils/formatters'
+import { avatarSrc } from '../utils/avatar'
 
 const DETAIL_TYPES = ['community_post', 'group_post']
 
@@ -85,7 +86,7 @@ function reportPost() {
         <p class="description">{{ post.description }}</p>
 
         <div class="poster">
-          <img class="avatar" :src="post.author.avatar_url" :alt="post.author.username" />
+          <img class="avatar" :src="avatarSrc(post.author)" :alt="post.author.username" />
           <div class="poster-meta">
             <div class="poster-line">
               <span class="username">{{ post.author.username }}</span>

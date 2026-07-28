@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import PhotoPicker from './create/PhotoPicker.vue'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
+import { avatarSrc } from '../utils/avatar'
 
 const { state: authState } = useAuth()
 
@@ -84,7 +85,7 @@ function submit() {
         class="mention-option"
         @mousedown.prevent="selectMention(user)"
       >
-        <img class="mention-avatar" :src="user.avatar_url" :alt="user.username" />
+        <img class="mention-avatar" :src="avatarSrc(user)" :alt="user.username" />
         <span class="mention-username">{{ user.username }}</span>
       </button>
     </div>

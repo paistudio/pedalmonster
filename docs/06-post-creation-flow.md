@@ -24,9 +24,8 @@ Shared entry point for creating any of the 3 post types, triggered by the "+" sl
 - Optional photo (useful for troubleshooting-style posts)
 
 ### Group Post
-- Requires selecting which group to post in (only groups user is a member of)
-- Photo (optional)
-- Text body
+- Requires selecting which group to post in (only groups user is a member of) — the only field that differs from Post (Community)
+- Otherwise identical to Post (Community): same description field/placeholder, no title field, optional photo. (Fixed a drift from this spec where the form had grown its own required Title field and a different placeholder — removed to match.)
 
 ## Mobile UX Notes
 - Use bottom sheet for the type picker, full-screen step-by-step form (not a single long scroll) for the actual creation form — keeps it feeling lightweight on mobile

@@ -8,6 +8,7 @@ import UserListSheet from '../components/UserListSheet.vue'
 import { useGroupStore } from '../composables/useGroupStore'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useAuth } from '../composables/useAuth'
+import { avatarSrc } from '../utils/avatar'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,7 +97,7 @@ function blockMember(userId) {
               v-for="user in memberPreview"
               :key="user.id"
               class="member-avatar"
-              :src="user.avatar_url"
+              :src="avatarSrc(user)"
               :alt="user.username"
             />
           </div>

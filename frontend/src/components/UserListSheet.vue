@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomSheet from './BottomSheet.vue'
 import { useAuth } from '../composables/useAuth'
+import { avatarSrc } from '../utils/avatar'
 
 const props = defineProps({
   open: { type: Boolean, required: true },
@@ -42,7 +43,7 @@ function confirmBlock(userId) {
     <div class="user-list">
       <div v-for="user in users" :key="user.id" class="user-row">
         <button class="user-row__identity" @click="openProfile(user)">
-          <img class="avatar" :src="user.avatar_url" :alt="user.username" />
+          <img class="avatar" :src="avatarSrc(user)" :alt="user.username" />
           <span class="username">{{ user.username }}</span>
         </button>
 

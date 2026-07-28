@@ -12,6 +12,7 @@ import { useFeedStore } from './composables/useFeedStore'
 import { useGroupStore } from './composables/useGroupStore'
 import { useAuth } from './composables/useAuth'
 import { formatPrice, formatRelativeTime } from './utils/formatters'
+import { avatarSrc } from './utils/avatar'
 
 const route = useRoute()
 const router = useRouter()
@@ -322,7 +323,7 @@ async function confirmLogout() {
             <img
               v-if="item.otherUser"
               class="inbox-item__avatar"
-              :src="item.otherUser.avatar_url"
+              :src="avatarSrc(item.otherUser)"
               :alt="item.otherUser.username"
             />
             <span class="inbox-item__text">
