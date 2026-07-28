@@ -5,7 +5,7 @@ import TabBar from '../components/TabBar.vue'
 import PostCard from '../components/PostCard.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useGroupStore } from '../composables/useGroupStore'
-import { currentUser } from '../mocks'
+import { useAuth } from '../composables/useAuth'
 
 const PROFILE_TABS = [
   { value: 'posts', label: 'My Posts' },
@@ -15,9 +15,11 @@ const PROFILE_TABS = [
 const router = useRouter()
 const feedStore = useFeedStore()
 const groupStore = useGroupStore()
+const { state: authState } = useAuth()
+const currentUser = computed(() => authState.currentUser || {})
 const activeTab = ref('posts')
 
-const myPosts = computed(() => feedStore.posts.filter((post) => post.user_id === currentUser.id))
+const myPosts = computed(() => feedStore.posts.filter((post) => post.user_id === authState.currentUser?.id))
 const myGroups = computed(() => groupStore.groups.filter((group) => groupStore.isJoined(group.id)))
 </script>
 

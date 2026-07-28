@@ -10,6 +10,7 @@ import { useAppState } from './composables/useAppState'
 import { useMarketFilters } from './composables/useMarketFilters'
 import { useFeedStore } from './composables/useFeedStore'
 import { useGroupStore } from './composables/useGroupStore'
+import { useAuth } from './composables/useAuth'
 import { getUserById } from './mocks'
 import { formatPrice } from './utils/formatters'
 
@@ -19,6 +20,7 @@ const { state, toggleDrawer, closeDrawer, openInbox, closeInbox, toggleInboxTab,
 const marketFilters = useMarketFilters()
 const feedStore = useFeedStore()
 const groupStore = useGroupStore()
+const { signOut } = useAuth()
 const showShell = computed(() => !route.meta.hideShell)
 const isMarket = computed(() => route.name === 'market')
 const isGroups = computed(() => route.name === 'groups')
@@ -149,9 +151,10 @@ function openChatItem(item) {
   if (item.userId) router.push(`/chat/${item.userId}`)
 }
 
-function confirmLogout() {
+async function confirmLogout() {
   confirmingLogout.value = false
   closeDrawer()
+  await signOut()
   router.push('/login')
 }
 </script>

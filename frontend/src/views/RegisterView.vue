@@ -6,9 +6,13 @@ import CreationHeader from '../components/create/CreationHeader.vue'
 import PhotoPicker from '../components/create/PhotoPicker.vue'
 import LocationPickerSheet from '../components/LocationPickerSheet.vue'
 import { useUserLocation } from '../composables/useUserLocation'
-import { getCityById } from '../mocks'
+import { useAuth } from '../composables/useAuth'
+import { useCities, getCityById } from '../composables/useCities'
+
+useCities()
 
 const router = useRouter()
+const { signUp } = useAuth()
 const { state: locationState, openPicker, closePicker, setManualCity } = useUserLocation()
 
 const username = ref('')
@@ -16,6 +20,8 @@ const email = ref('')
 const password = ref('')
 const avatar = ref([])
 const errors = reactive({})
+const submitting = ref(false)
+const needsEmailConfirmation = ref(false)
 
 const selectedCityName = computed(() => getCityById(locationState.resolvedCityId)?.name || '')
 
@@ -27,9 +33,29 @@ function validate() {
   return !errors.username && !errors.email && !errors.password && !errors.location
 }
 
-function submit() {
-  if (!validate()) return
-  // Mock only — no backend exists yet (Phase 2). Always signs in as the seeded currentUser.
+async function submit() {
+  if (!validate() || submitting.value) return
+  submitting.value = true
+  errors.form = ''
+
+  // Avatar upload to Supabase Storage lands with the rest of the photo-upload wiring — the
+  // picker only produces local blob URLs today, see docs/19-supabase-only-backend-plan.md.
+  const { error, needsEmailConfirmation: pending } = await signUp({
+    email: email.value.trim(),
+    password: password.value,
+    username: username.value.trim(),
+    location_city_id: locationState.resolvedCityId,
+  })
+
+  submitting.value = false
+  if (error) {
+    errors.form = error.message
+    return
+  }
+  if (pending) {
+    needsEmailConfirmation.value = true
+    return
+  }
   router.replace('/')
 }
 </script>
@@ -38,66 +64,77 @@ function submit() {
   <div class="form-screen">
     <CreationHeader title="Create Account" />
 
-    <div class="form-step">
-      <div class="field">
-        <label class="field-label">Profile photo (optional)</label>
-        <PhotoPicker v-model="avatar" :max="1" />
-      </div>
-
-      <div class="field">
-        <label class="field-label">Username</label>
-        <input
-          v-model="username"
-          class="field-input"
-          :class="{ 'field-input--error': errors.username }"
-          placeholder="e.g. bang_gowes"
-        />
-        <span v-if="errors.username" class="field-error">{{ errors.username }}</span>
-      </div>
-
-      <div class="field">
-        <label class="field-label">Email</label>
-        <input
-          v-model="email"
-          type="email"
-          class="field-input"
-          :class="{ 'field-input--error': errors.email }"
-          placeholder="you@example.com"
-        />
-        <span v-if="errors.email" class="field-error">{{ errors.email }}</span>
-      </div>
-
-      <div class="field">
-        <label class="field-label">Password</label>
-        <input
-          v-model="password"
-          type="password"
-          class="field-input"
-          :class="{ 'field-input--error': errors.password }"
-          placeholder="••••••••"
-        />
-        <span v-if="errors.password" class="field-error">{{ errors.password }}</span>
-      </div>
-
-      <div class="field">
-        <label class="field-label">City / location</label>
-        <button
-          type="button"
-          class="field-input location-trigger"
-          :class="{ 'field-input--error': errors.location }"
-          @click="openPicker"
-        >
-          <span>{{ selectedCityName || 'Choose your city' }}</span>
-          <Icon icon="iconoir:nav-arrow-right" width="16" height="16" />
-        </button>
-        <span v-if="errors.location" class="field-error">{{ errors.location }}</span>
-      </div>
+    <div v-if="needsEmailConfirmation" class="confirm-notice">
+      <p>Check your email to confirm your account, then log in.</p>
+      <button class="btn btn-primary" @click="router.replace('/login')">Go to Login</button>
     </div>
 
-    <footer class="form-footer">
-      <button class="btn btn-secondary" @click="router.push('/login')">Cancel</button>
-      <button class="btn btn-primary" @click="submit">Create Account</button>
-    </footer>
+    <template v-else>
+      <div class="form-step">
+        <div class="field">
+          <label class="field-label">Profile photo (optional)</label>
+          <PhotoPicker v-model="avatar" :max="1" />
+        </div>
+
+        <div class="field">
+          <label class="field-label">Username</label>
+          <input
+            v-model="username"
+            class="field-input"
+            :class="{ 'field-input--error': errors.username }"
+            placeholder="e.g. bang_gowes"
+          />
+          <span v-if="errors.username" class="field-error">{{ errors.username }}</span>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Email</label>
+          <input
+            v-model="email"
+            type="email"
+            class="field-input"
+            :class="{ 'field-input--error': errors.email }"
+            placeholder="you@example.com"
+          />
+          <span v-if="errors.email" class="field-error">{{ errors.email }}</span>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Password</label>
+          <input
+            v-model="password"
+            type="password"
+            class="field-input"
+            :class="{ 'field-input--error': errors.password }"
+            placeholder="••••••••"
+          />
+          <span v-if="errors.password" class="field-error">{{ errors.password }}</span>
+        </div>
+
+        <div class="field">
+          <label class="field-label">City / location</label>
+          <button
+            type="button"
+            class="field-input location-trigger"
+            :class="{ 'field-input--error': errors.location }"
+            @click="openPicker"
+          >
+            <span>{{ selectedCityName || 'Choose your city' }}</span>
+            <Icon icon="iconoir:nav-arrow-right" width="16" height="16" />
+          </button>
+          <span v-if="errors.location" class="field-error">{{ errors.location }}</span>
+        </div>
+
+        <span v-if="errors.form" class="field-error">{{ errors.form }}</span>
+      </div>
+
+      <footer class="form-footer">
+        <button class="btn btn-secondary" @click="router.push('/login')">Cancel</button>
+        <button class="btn btn-primary" :disabled="submitting" @click="submit">
+          {{ submitting ? 'Creating…' : 'Create Account' }}
+        </button>
+      </footer>
+    </template>
 
     <LocationPickerSheet
       :open="locationState.isPickerOpen"
@@ -117,5 +154,15 @@ function submit() {
   gap: 8px;
   color: var(--color-text);
   text-align: left;
+}
+
+.confirm-notice {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+  color: var(--color-text-muted);
 }
 </style>

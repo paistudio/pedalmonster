@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import BottomSheet from './BottomSheet.vue'
 import { requestGeolocationCity } from '../utils/geo'
-import { cities } from '../mocks'
+import { useCities } from '../composables/useCities'
 
 const props = defineProps({
   open: { type: Boolean, required: true },
@@ -11,10 +11,12 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'update:modelValue'])
 
+const { state: citiesState } = useCities()
 const query = ref('')
 const status = ref('idle') // idle | requesting | denied | unsupported | error
 
 const filteredCities = computed(() => {
+  const cities = citiesState.cities
   const q = query.value.trim().toLowerCase()
   if (!q) return cities
   return cities.filter(
@@ -37,7 +39,7 @@ function selectCity(cityId) {
 async function useGpsLocation() {
   status.value = 'requesting'
   try {
-    const city = await requestGeolocationCity(cities)
+    const city = await requestGeolocationCity(citiesState.cities)
     status.value = 'idle'
     selectCity(city.id)
   } catch (error) {

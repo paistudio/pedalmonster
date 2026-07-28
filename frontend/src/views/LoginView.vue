@@ -1,11 +1,14 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const { signIn } = useAuth()
 const email = ref('')
 const password = ref('')
 const errors = reactive({})
+const submitting = ref(false)
 
 function validate() {
   errors.email = email.value.trim() ? '' : 'Email is required'
@@ -13,9 +16,18 @@ function validate() {
   return !errors.email && !errors.password
 }
 
-function submit() {
-  if (!validate()) return
-  // Mock only — no backend exists yet (Phase 2). Always signs in as the seeded currentUser.
+async function submit() {
+  if (!validate() || submitting.value) return
+  submitting.value = true
+  errors.form = ''
+
+  const { error } = await signIn({ email: email.value.trim(), password: password.value })
+
+  submitting.value = false
+  if (error) {
+    errors.form = error.message
+    return
+  }
   router.replace('/')
 }
 </script>
@@ -46,11 +58,16 @@ function submit() {
           class="field-input"
           :class="{ 'field-input--error': errors.password }"
           placeholder="••••••••"
+          @keyup.enter="submit"
         />
         <span v-if="errors.password" class="field-error">{{ errors.password }}</span>
       </div>
 
-      <button class="btn btn-primary auth-submit" @click="submit">Log In</button>
+      <span v-if="errors.form" class="field-error">{{ errors.form }}</span>
+
+      <button class="btn btn-primary auth-submit" :disabled="submitting" @click="submit">
+        {{ submitting ? 'Logging in…' : 'Log In' }}
+      </button>
 
       <p class="auth-switch">
         Don't have an account?

@@ -1,0 +1,4 @@
+# Root-level secrets — never commit. Frontend/backend have their own .gitignore too.
+.env
+.env.*
+!.env.example

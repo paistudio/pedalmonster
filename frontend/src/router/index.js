@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import { useAuth } from '../composables/useAuth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -111,6 +112,20 @@ const router = createRouter({
       meta: { hideShell: true },
     },
   ],
+})
+
+const AUTH_ROUTE_NAMES = new Set(['login', 'register'])
+
+router.beforeEach(async (to) => {
+  const { state, init } = useAuth()
+  await init()
+
+  if (!state.session && !AUTH_ROUTE_NAMES.has(to.name)) {
+    return { name: 'login' }
+  }
+  if (state.session && AUTH_ROUTE_NAMES.has(to.name)) {
+    return { name: 'home' }
+  }
 })
 
 export default router

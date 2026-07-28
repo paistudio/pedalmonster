@@ -7,8 +7,10 @@ local:
   root: <%= Rails.root.join("storage") %>
 
 # Supabase Storage's S3-compatible API — used in production, see docs/18-backend-build-plan.md.
-# `public: true` skips URL signing since post/comment/chat/avatar photos need to be publicly
-# viewable without expiring links; force_path_style is required for non-AWS S3-compatible hosts.
+# force_path_style is required for non-AWS S3-compatible hosts. NOTE: `public: true` only
+# controls whether ActiveStorage signs the URLs *it* builds — Supabase's S3 gateway itself
+# requires SigV4 auth on every request regardless, so `blob.url` still 403s. Public URLs
+# actually go through Supabase's own REST API instead — see MediaUpload#public_url.
 supabase:
   service: S3
   access_key_id: <%= ENV["SUPABASE_STORAGE_ACCESS_KEY_ID"] %>

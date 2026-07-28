@@ -1,17 +1,31 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import PostCard from '../components/PostCard.vue'
 import { useFeedStore } from '../composables/useFeedStore'
-import { currentUser, getUserById } from '../mocks'
+import { useAuth } from '../composables/useAuth'
+import { supabase } from '../lib/supabase'
 
 const route = useRoute()
 const router = useRouter()
 const feedStore = useFeedStore()
+const { state: authState } = useAuth()
 
-const user = computed(() => getUserById(route.params.id))
-const isSelf = computed(() => route.params.id === currentUser.id)
+const user = ref(null)
+
+async function loadUser(id) {
+  if (!id) {
+    user.value = null
+    return
+  }
+  const { data } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
+  user.value = data
+}
+
+watch(() => route.params.id, loadUser, { immediate: true })
+
+const isSelf = computed(() => route.params.id === authState.currentUser?.id)
 
 const memberSince = computed(() =>
   user.value

@@ -19,22 +19,23 @@ Feed to Claude Code in this order:
 
 **Checkpoint:** Full click-through prototype on mock data. Review UX end-to-end on an actual mobile device/viewport before Phase 2.
 
-## Phase 2 — Backend (Ruby/Rails, built independently)
-Detailed plan lives in `18-backend-build-plan.md` — architecture decisions (Supabase Postgres as the database, JWT auth, Active Storage on Supabase Storage), migration order, and the step-by-step build sequence. Feed that doc to Claude Code for this phase; the summary below is just the checkpoint shape.
-1. Re-feed `02-data-model.md` + `18-backend-build-plan.md` to Claude Code as the source of truth for database schema + models
-2. Build models, migrations, associations against the Supabase-hosted Postgres database
-3. Build API endpoints per the endpoint list in `02-data-model.md`
-4. Build Supabase JWT verification (not Rails-issued auth) per `03-auth-user-profile.md`/`18-backend-build-plan.md` — Supabase Auth owns registration/login/password reset, Rails only verifies tokens
-5. Build rank/points calculation logic (server-side, triggered on relevant actions)
-6. Write request specs (RSpec) covering each endpoint — test independently of the frontend, using tools like Postman/curl or specs
+## Phase 2 — Supabase (schema, RLS, triggers, Edge Functions — no custom backend server)
+Detailed plan lives in `19-supabase-only-backend-plan.md` — architecture decisions, RLS policy design per table, trigger/function list, Edge Function list, and the step-by-step build order. Feed that doc to Claude Code for this phase; the summary below is just the checkpoint shape. (`18-backend-build-plan.md` was the original Rails-based plan for this phase — superseded, kept for history.)
+1. Re-feed `02-data-model.md` + `19-supabase-only-backend-plan.md` to Claude Code as the source of truth for schema + RLS/trigger/Edge Function design
+2. Set up Supabase CLI local dev, pull the already-migrated schema as the baseline
+3. Enable RLS and write/test policies per table
+4. Write/test the derived-counter and mention-extraction triggers, and the `handle_new_user`/group-post-cascade functions
+5. Write/test the `chat-send-message`, `group-join`, and `submit-report` Edge Functions
+6. Rewrite `02-data-model.md`'s data-access section into concrete `supabase-js` call references as each piece lands
 
-**Checkpoint:** All API endpoints tested and working in isolation (e.g. via RSpec + manual Postman checks) before touching the frontend.
+**Checkpoint:** every RLS policy has a passing allow-case and deny-case test, every trigger/function/Edge Function has a test, before touching the frontend.
 
 ## Phase 3 — Integration
-1. Replace Vue mock data layer with real API calls, screen by screen, in the same order as Phase 1 (feed → creation flow → marketplace → community → groups → profile)
-2. Wire real auth (login/register/session persistence)
-3. Test each screen against the real backend before moving to the next
+1. Replace Vue mock data layer with real `supabase-js` calls, screen by screen, in the same order as Phase 1 (feed → creation flow → marketplace → community → groups → profile)
+2. Wire real auth (login/register/session persistence) via Supabase Auth's client SDK
+3. Test each screen against the real Supabase project before moving to the next
 4. Final PWA checks: install prompt, offline shell caching, push notification setup (verify iOS Safari support at this point)
+5. Deploy the frontend to Vercel — the only deployment target, since there's no separate backend to host
 
 **Checkpoint:** Fully working end-to-end MVP, mobile-first, PWA-installable.
 

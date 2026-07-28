@@ -12,6 +12,7 @@
     "@iconify-json/fa6-solid": "^1.2.4",
     "@iconify-json/iconoir": "^1.2.11",
     "@iconify/vue": "^5.0.1",
+    "@supabase/supabase-js": "^2.110.9",
     "vue": "^3.5.39",
     "vue-router": "^4.6.4"
   },

@@ -10,7 +10,7 @@ module Api
       upload.file.attach(file)
 
       if upload.save
-        render json: { url: upload.file.blob.url }, status: :created
+        render json: { url: upload.public_url }, status: :created
       else
         render json: { errors: upload.errors.full_messages }, status: :unprocessable_entity
       end

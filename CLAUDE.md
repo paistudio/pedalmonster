@@ -17,19 +17,20 @@ Then check `docs/11-build-sequence.md` to determine which phase and which doc to
 `design.md` (repo root) is always in effect. Every screen, component, and future addition must use its tokens (colors, typography, spacing, radius) and components (pill buttons, hairline cards, no shadows, no bold display text). Do not invent colors/spacing/shapes outside it. If a feature doc's UX notes conflict with `design.md` on a purely visual matter (e.g. a suggested color), `design.md` wins — flag the conflict, don't silently blend the two.
 
 ## Tech Stack (do not deviate)
-- **Frontend:** Vue 3, Composition API
-- **Backend:** Ruby (Rails API mode)
-- **Database:** Supabase Postgres — accessed only by the Rails backend via ActiveRecord/migrations, never directly by the frontend
-- **Auth:** Supabase Auth — the one exception to the rule above; the Vue frontend authenticates directly against Supabase Auth's client SDK (register/login/session/password reset), and Rails verifies the resulting JWT on every API request rather than issuing its own. See `docs/18-backend-build-plan.md`
-- **Connection:** REST API between the two — kept as separate, independently testable codebases
+- **Frontend:** Vue 3, Composition API — the only application codebase. No custom backend server.
+- **Backend:** None — Supabase is the backend directly (Postgres, Auth, Storage, Edge Functions). Business logic that would otherwise live in a server controller lives in Postgres Row Level Security policies, triggers/functions, or Supabase Edge Functions instead. See `docs/19-supabase-only-backend-plan.md`. (A Rails API was built and later superseded by this — see `docs/18-backend-build-plan.md`'s superseded notice.)
+- **Database:** Supabase Postgres, accessed directly by the frontend via `supabase-js`, gated by Row Level Security — no REST API layer in front of it
+- **Auth:** Supabase Auth via `supabase-js` directly from the frontend (register/login/session/password reset)
+- **Storage:** Supabase Storage via `supabase-js`, direct browser upload — no backend proxy
+- **Hosting:** Vercel — the only deployment target, since there's no separate backend to host
 - **PWA:** installable manifest + service worker, mobile-first only (no desktop layout work)
 
 ## Phase Discipline — Critical Rule
 This project is built in 3 strict phases. **Do not skip ahead or blend phases unless explicitly told to.**
 
 1. **Phase 1 — Prototype:** Vue frontend only, using mock/static data matching `docs/02-data-model.md`. No backend code yet.
-2. **Phase 2 — Backend:** Ruby/Rails API + database, built and tested independently (RSpec/request specs). No frontend changes during this phase.
-3. **Phase 3 — Integration:** Wire the Vue frontend to the real API, replacing mock data.
+2. **Phase 2 — Supabase:** schema, RLS policies, triggers/functions, and Edge Functions — built and tested independently (pgTAP/Deno test against a local Supabase CLI stack, see `docs/19-supabase-only-backend-plan.md`). No frontend changes during this phase.
+3. **Phase 3 — Integration:** Wire the Vue frontend to real `supabase-js` calls, replacing mock data.
 
 If asked to build something that belongs to a later phase than the one currently active, stop and flag it rather than proceeding.
 

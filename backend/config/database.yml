@@ -84,3 +84,8 @@ production:
   # `bin/rails db:migrate` should be run with DATABASE_URL_MIGRATE (direct 5432 connection)
   # temporarily set as DATABASE_URL instead — pooled connections aren't ideal for DDL.
   url: <%= ENV["DATABASE_URL"] %>
+  # PgBouncer's transaction-pooling mode (port 6543) doesn't support session-level features
+  # Rails normally relies on — both must be disabled or every request risks cross-request
+  # statement/lock leakage under the pooler.
+  prepared_statements: false
+  advisory_locks: false

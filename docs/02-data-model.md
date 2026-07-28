@@ -1,11 +1,11 @@
 # Data Model & API Contract
 
-This is the reference for BOTH the Vue prototype's mock data shape AND the real Rails API — keep them in sync so integration (Phase 3) is a drop-in swap.
+This is the reference for BOTH the Vue prototype's mock data shape AND the real Supabase schema — keep them in sync so integration (Phase 3) is a drop-in swap. There is no custom backend API — the frontend talks to Supabase directly (`supabase-js`), gated by Row Level Security. See `19-supabase-only-backend-plan.md` for the RLS/trigger/Edge Function design; table/column names below are exactly what's queried.
 
 ## Core Entities
 
 ### User
-Authentication (credential storage, login, session/refresh tokens, password reset) is owned entirely by **Supabase Auth**, not this table — see `18-backend-build-plan.md`. In the real backend, this entity is a `profiles` row whose `id` is a foreign key to Supabase's `auth.users.id` (created via a DB trigger on sign-up), holding only the app-specific fields below. `email` lives on `auth.users`, not `profiles` — shown here because the API still surfaces it (joined in) for the mock data shape and for display on Account Settings, but it's read-only from Rails' side; changing it goes through Supabase Auth directly, not `PATCH /api/users/:id`.
+Authentication (credential storage, login, session/refresh tokens, password reset) is owned entirely by **Supabase Auth**, not this table — see `19-supabase-only-backend-plan.md`. This entity is a `profiles` row whose `id` is a foreign key to Supabase's `auth.users.id` (created via a DB trigger on sign-up), holding only the app-specific fields below. `email` lives on `auth.users`, not `profiles` — shown here because the frontend still surfaces it (joined in) for the mock data shape and for display on Account Settings, but changing it goes through Supabase Auth directly (`supabase.auth.updateUser({ email })`), never a `profiles` update.
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | FK to Supabase `auth.users.id` in the real backend; a plain generated id in the Phase 1 mock |
@@ -190,24 +190,27 @@ Tracks each participant's read position in a thread, so unread state can be comp
 | Alpha | 150–349 |
 | Pedal Monster | 350+ |
 
-## API Endpoints (REST, high-level — Phase 2 will detail request/response shapes)
-Since a comment is just a `Post` row (`type=comment`, `parent_id` set), the `/comments` paths below are ergonomic nested routes over the same underlying `posts` table/resource — not a separate backing model. `GET /api/feed`, `GET /api/listings`, etc. filter to `type != comment` server-side so comments never leak into a top-level browse list.
-- `GET /api/feed` — unified feed, paginated, mixed top-level post types (`type != comment`)
-- `GET /api/posts/:id`
-- `POST /api/posts` — create a top-level post (type determines required type_data fields)
-- `PATCH /api/posts/:id`, `DELETE /api/posts/:id` — owner-only edit/delete; delete cascades to every `Post` row with `parent_id` = this post (i.e. its comments), see `05-home-feed.md`
-- `GET /api/listings` — dedicated filtered browse endpoint
-- `POST /api/posts/:id/comments` — creates a `Post` row with `type=comment` and `parent_id=:id`
-- `PATCH /api/posts/:id`, `DELETE /api/posts/:id` — same two endpoints as above, also used for a comment row (comment-author-only instead of post-owner-only); no separate `/api/comments/:id` resource
-- `POST /api/posts/:id/like`, `DELETE /api/posts/:id/like` — same endpoint for liking a top-level post or a comment, since both are `Post` rows; also powers the drawer's Liked screen via `GET /api/users/:id/likes` (which excludes `type=comment` rows)
-- `GET /api/groups`, `POST /api/groups`, `POST /api/groups/:id/join`
-- `GET /api/users/:id` — profile + rank
-- `PATCH /api/users/:id` — account info update (username, bio, location, location_city_id, avatar) — **not** `email` or password, those go through Supabase Auth directly from the frontend, see below
-- `GET /api/cities` — canonical city reference list, powers the location picker (`17-regional-location.md`)
-- `POST /api/reports` — Report a problem submission (category + description), or a per-post report (category + `post_id`, no description required) from a post's three-dot menu
-- `GET /api/tags/:name`, `POST /api/tags/:name/follow`, `DELETE /api/tags/:name/follow` — topic detail + follow/unfollow (`13-tags-and-topic-discovery.md`); `GET /api/users/:id/followed-tags` powers the drawer's Topics list
-- `GET /api/notifications`, `POST /api/notifications/:id/read` — inbox Notifications tab
-- `GET /api/chats` — thread list for the inbox Chat tab (other participant, last message preview/time, unread flag from `ChatThreadRead`)
-- `GET /api/chats/:userId/messages`, `POST /api/chats/:userId/messages` — thread keyed by the other participant's user id, matching `/chat/:userId` in the frontend; message body may be blank if `media_urls` is non-empty
-- `POST /api/chats/:userId/read` — updates the current user's `ChatThreadRead.last_read_at` for that thread
-- **No Rails auth endpoints.** Registration, login, logout, session refresh, and password reset are all handled by **Supabase Auth**'s client SDK directly from the frontend (Phase 3) — every other endpoint above requires a valid Supabase-issued JWT (`Authorization: Bearer`), verified by Rails on each request. See `18-backend-build-plan.md`.
+## Data Access Pattern (Supabase — no custom REST API)
+No backend server — the frontend calls Supabase directly via `supabase-js`, gated by Row Level Security (policy design in `19-supabase-only-backend-plan.md`). Since a comment is just a `Post` row (`type=comment`, `parent_id` set), "comments" below are just `posts` queries filtered/scoped accordingly, not a separate table.
+
+**Plain table queries** (`supabase.from(table)...`, RLS-gated):
+- Feed: `posts` select where `type != 'comment'`, ordered by `created_at desc`
+- Post detail + its comments: `posts` select by `id`, plus a second `posts` select where `parent_id = :id`
+- Create/edit/delete a post or comment: `posts` insert/update/delete — RLS enforces `user_id = auth.uid()` for update/delete
+- Listings browse: `posts` select where `type = 'listing'`, with `.eq()`/`.gte()`/`.lte()` filters for category/condition/price/location
+- Likes: `post_likes` insert/delete — unique constraint on `(post_id, user_id)` prevents double-like; `like_count` maintained by a trigger, not the client
+- Groups: `groups` select/insert/update/delete; `group_memberships` insert/delete for join/leave (owner block goes through the `group-join`-adjacent moderation flow, see below)
+- Profile: `profiles` select by `id`; update — RLS restricts to `id = auth.uid()` and excludes `email`/password (those go through Supabase Auth directly, see below)
+- Cities: `cities` select — read-only reference table, powers the location picker (`17-regional-location.md`)
+- Reports: `reports` insert only — no read access from the client
+- Tags: `tag_follows` insert/delete for follow/unfollow; `tag_follows`/`posts` select-with-count queries for follower count and the topic detail post list; `tag_follows` select where `user_id = auth.uid()` for the drawer's Topics list
+- Notifications: `notifications` select/update (mark-read) where `user_id = auth.uid()` — inserts only ever come from triggers/Edge Functions, never the client
+
+**Edge Function calls** (`supabase.functions.invoke(name, { body })`) — used where the logic needs to touch more than RLS/a single insert can express, see `19-supabase-only-backend-plan.md` for why each one exists:
+- `chat-send-message` — finds-or-creates the thread for `(auth.uid(), other_user_id)`, then inserts the message; body may omit `body` if `media_urls` is non-empty
+- `group-join` — joins a group, silently no-oping (not erroring) if the current user is blocked
+- `submit-report` — validates the description-required-unless-post_id rule before inserting a report (may end up as a plain `CHECK` constraint instead — see the open note in `19-supabase-only-backend-plan.md`)
+
+**Auth.** Registration, login, logout, session refresh, and password reset are all handled by **Supabase Auth**'s client SDK directly from the frontend — there is nothing else to call for these.
+
+**Storage.** `supabase.storage.from('media').upload(...)` directly from the browser for post/comment/chat photos and avatars — no upload proxy. Public URL is `{SUPABASE_URL}/storage/v1/object/public/media/{path}`, not the S3-gateway path (see the confirmed gotcha in `19-supabase-only-backend-plan.md`).

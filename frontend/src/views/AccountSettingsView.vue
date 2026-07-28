@@ -1,29 +1,48 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import LocationPickerSheet from '../components/LocationPickerSheet.vue'
 import { useUserLocation } from '../composables/useUserLocation'
-import { currentUser, getCityById } from '../mocks'
+import { useCities, getCityById } from '../composables/useCities'
+import { useAuth } from '../composables/useAuth'
+import { supabase } from '../lib/supabase'
 
 const router = useRouter()
 const { state: locationState, openPicker, closePicker, setManualCity } = useUserLocation()
+const { state: authState } = useAuth()
+useCities()
 
+const currentUser = computed(() => authState.currentUser || {})
 const avatarInput = ref(null)
 
 function onAvatarSelected(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  currentUser.avatar_url = URL.createObjectURL(file)
+  // Real Storage upload lands with the rest of the photo-upload wiring — local preview only
+  // for now, see docs/19-supabase-only-backend-plan.md.
+  if (authState.currentUser) authState.currentUser.avatar_url = URL.createObjectURL(file)
   e.target.value = ''
 }
 
-const account = reactive({
-  username: currentUser.username,
-  email: currentUser.email,
-})
+const account = reactive({ username: '', email: '' })
 const accountErrors = reactive({})
 const accountSaved = ref(false)
+
+watch(
+  () => authState.currentUser,
+  (user) => {
+    if (user) account.username = user.username
+  },
+  { immediate: true },
+)
+watch(
+  () => authState.session,
+  (session) => {
+    account.email = session?.user?.email || ''
+  },
+  { immediate: true },
+)
 
 const selectedCityName = computed(() => getCityById(locationState.resolvedCityId)?.name || '')
 
@@ -35,23 +54,60 @@ const password = reactive({
 const passwordErrors = reactive({})
 const passwordSaved = ref(false)
 
-function saveAccount() {
+async function saveAccount() {
   accountErrors.username = account.username.trim() ? '' : 'Username is required'
   accountErrors.email = account.email.trim() ? '' : 'Email is required'
+  accountErrors.form = ''
   if (accountErrors.username || accountErrors.email) return
 
-  currentUser.username = account.username.trim()
-  currentUser.email = account.email.trim()
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ username: account.username.trim() })
+    .eq('id', authState.currentUser.id)
+  if (profileError) {
+    accountErrors.form = profileError.message
+    return
+  }
+  authState.currentUser.username = account.username.trim()
+
+  // email is Supabase-Auth-owned — a separate call even though it's presented as one form,
+  // see docs/03-auth-user-profile.md.
+  if (account.email.trim() !== authState.session?.user?.email) {
+    const { error: emailError } = await supabase.auth.updateUser({ email: account.email.trim() })
+    if (emailError) {
+      accountErrors.form = emailError.message
+      return
+    }
+  }
+
   accountSaved.value = true
   passwordSaved.value = false
   setTimeout(() => (accountSaved.value = false), 2500)
 }
 
-function updatePassword() {
+async function updatePassword() {
   passwordErrors.current = password.current ? '' : 'Current password is required'
   passwordErrors.next = password.next.length >= 8 ? '' : 'New password must be at least 8 characters'
   passwordErrors.confirm = password.next === password.confirm ? '' : 'Passwords do not match'
+  passwordErrors.form = ''
   if (passwordErrors.current || passwordErrors.next || passwordErrors.confirm) return
+
+  // updateUser doesn't itself check the current password, so re-auth first — see
+  // docs/03-auth-user-profile.md.
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: authState.session.user.email,
+    password: password.current,
+  })
+  if (reauthError) {
+    passwordErrors.current = 'Current password is incorrect'
+    return
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: password.next })
+  if (error) {
+    passwordErrors.form = error.message
+    return
+  }
 
   password.current = ''
   password.next = ''
@@ -118,6 +174,7 @@ function updatePassword() {
           </button>
         </div>
 
+        <span v-if="accountErrors.form" class="field-error">{{ accountErrors.form }}</span>
         <button class="btn btn-primary" @click="saveAccount">Save changes</button>
         <p v-if="accountSaved" class="save-confirm">Account information updated.</p>
       </section>
@@ -170,6 +227,7 @@ function updatePassword() {
           <span v-if="passwordErrors.confirm" class="field-error">{{ passwordErrors.confirm }}</span>
         </div>
 
+        <span v-if="passwordErrors.form" class="field-error">{{ passwordErrors.form }}</span>
         <button class="btn btn-primary" @click="updatePassword">Update password</button>
         <p v-if="passwordSaved" class="save-confirm">Password updated.</p>
       </section>

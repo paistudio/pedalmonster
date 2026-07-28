@@ -6,20 +6,20 @@ Pedal Monster is a mobile-first PWA community platform for bike enthusiasts. Use
 Built with the intent to later wrap into a native app (Capacitor or similar) once the PWA is stable.
 
 ## Tech Stack
-- **Frontend:** Vue 3 (Composition API)
-- **Backend:** Ruby (Rails API mode)
-- **Database:** Supabase Postgres — Rails/ActiveRecord owns the schema via its own migrations; the frontend never talks to Supabase directly for data, only through the Rails API
-- **Auth:** Supabase Auth — the one exception to the line above; the frontend authenticates directly against Supabase Auth (register/login/session/password reset), and Rails verifies the resulting JWT rather than issuing its own. See `18-backend-build-plan.md`
-- **Connection:** REST API between frontend and backend
-- **Hosting (suggested):** Vercel (frontend) + any Rails-friendly host for backend
+- **Frontend:** Vue 3 (Composition API) — the only application codebase
+- **Backend:** None — Supabase is the backend directly (Postgres, Auth, Storage, Edge Functions), no custom server in between. See `19-supabase-only-backend-plan.md`. (A Rails API was originally built for this — see `18-backend-build-plan.md`'s superseded notice for why that was dropped.)
+- **Database:** Supabase Postgres, accessed directly by the frontend via `supabase-js`, gated by Row Level Security
+- **Auth:** Supabase Auth via `supabase-js` directly from the frontend
+- **Connection:** None — no REST API layer; the frontend talks to Supabase's own APIs directly
+- **Hosting:** Vercel (frontend only — nothing else to deploy)
 - **PWA:** manifest.json + service worker for installability, offline shell caching, push notifications (evaluate iOS Safari support at build time)
 
 ## Build Workflow (in order)
 This project is built in **3 phases**, and these docs are split to match:
 
-1. **Prototype Phase** — Vue frontend only, mock/static data. Get UI/UX reviewed and approved before touching backend.
-2. **Backend Phase** — Ruby/Rails API + database, built and tested independently of frontend (RSpec/request specs).
-3. **Integration Phase** — Connect Vue frontend to real API, replace mock data layer.
+1. **Prototype Phase** — Vue frontend only, mock/static data. Get UI/UX reviewed and approved before touching Supabase.
+2. **Supabase Phase** — schema, RLS policies, triggers/functions, and Edge Functions, built and tested independently of the frontend (pgTAP/Deno test against a local Supabase CLI stack).
+3. **Integration Phase** — Connect Vue frontend to real `supabase-js` calls, replace mock data layer.
 
 **Do not skip ahead.** Each doc in this set assumes the prior phase is approved before moving on.
 
@@ -42,7 +42,8 @@ This project is built in **3 phases**, and these docs are split to match:
 | 15 | `15-global-search.md` | Global multi-type search |
 | 16 | `16-app-preloader-splash.md` | Logo build animation shown on every load/refresh |
 | 17 | `17-regional-location.md` | Location capture + nearby/popular-nearby algorithm layer across Home, Marketplace, Groups |
-| 18 | `18-backend-build-plan.md` | Phase 2 backend plan — Rails + Supabase Postgres architecture, migration order, build sequence |
+| 18 | `18-backend-build-plan.md` | **Superseded** — original Phase 2 plan (Rails + Supabase Postgres), kept for history, see 19 |
+| 19 | `19-supabase-only-backend-plan.md` | Current Phase 2 plan — Supabase-only (RLS, triggers/functions, Edge Functions), no custom backend server |
 
 > `08` is intentionally vacant — it held the Events feature, which was cut from the product. Numbers are not reused, so later docs keep their existing filenames and references stay stable.
 

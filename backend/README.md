@@ -30,11 +30,15 @@ locally without a real Supabase project.
 
 ## Pointing at the real Supabase project
 
-Fill in `DATABASE_URL`, `DATABASE_URL_MIGRATE`, `SUPABASE_JWT_SECRET` (or `SUPABASE_JWKS_URL`),
-and the `SUPABASE_STORAGE_*` vars from the Supabase project dashboard — see `.env.example` for
-the full list and `docs/18-backend-build-plan.md` for what each one is for. Development/test
-keep using local Postgres regardless (see `config/database.yml`) — only `production` reads
-`DATABASE_URL`.
+Real credentials (`DATABASE_URL`, `DATABASE_URL_MIGRATE`, `SUPABASE_URL`, `SUPABASE_STORAGE_*`)
+go in **`.env.production`**, not `.env` — never move them into `.env`. `dotenv-rails` loads
+`.env` for both development and test, so a real `DATABASE_URL` sitting there means a plain
+`bundle exec rspec` could point straight at the production database. `.env.production` is
+never auto-loaded by Rails (dotenv isn't in production's Gemfile group) — it's only for
+`source .env .env.production` before an intentional `RAILS_ENV=production` command. See
+`docs/18-backend-build-plan.md`'s Environment & Config section for the full rationale and the
+`db:migrate` fresh-database gotcha (first-time production migration needs a hand-filtered
+`structure.sql`, already done once — subsequent migrations replay normally).
 
 ## Why `auth.users` exists locally
 
