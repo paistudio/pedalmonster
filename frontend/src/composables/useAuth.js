@@ -15,7 +15,13 @@ const state = reactive({
 async function loadProfile(userId) {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
   if (error) {
+    // A valid session with no matching profiles row shouldn't happen in normal operation
+    // (handle_new_user creates one on every sign-up), but a stale/orphaned session token
+    // could still reference a deleted account. Leaving currentUser null here would crash
+    // every screen that assumes it's set the moment a session exists — force a clean sign-out
+    // instead so the router guard sends them back to /login rather than into a broken state.
     state.currentUser = null
+    await supabase.auth.signOut()
     return
   }
   state.currentUser = { ...data, rank: getRankForPoints(data.points) }

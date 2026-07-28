@@ -2,32 +2,49 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { supabase } from '../lib/supabase'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useChatStore } from '../composables/useChatStore'
-import { currentUser, getUserById } from '../mocks'
+import { useAuth } from '../composables/useAuth'
 import { formatPrice } from '../utils/formatters'
 import PhotoPicker from '../components/create/PhotoPicker.vue'
 
 const route = useRoute()
 const router = useRouter()
 const feedStore = useFeedStore()
+const { state: authState } = useAuth()
 
-const otherUser = computed(() => getUserById(route.params.userId))
-const isSelf = computed(() => route.params.userId === currentUser.id)
+const otherUser = ref(null)
+supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', route.params.userId)
+  .maybeSingle()
+  .then(({ data }) => { otherUser.value = data })
 
-const chat = otherUser.value ? useChatStore(otherUser.value.id) : null
+const isSelf = computed(() => route.params.userId === authState.currentUser?.id)
+const isUploading = ref(false)
+
+const chat = useChatStore(route.params.userId)
 const draft = ref('')
 const photos = ref([])
 const showPhotoPicker = ref(false)
 
+// Product-mention messages only carry `listing_id` (see chat-send-message Edge Function) —
+// look the listing up from the already-loaded feed to render its title/price/image.
+function listingFor(message) {
+  return feedStore.posts.find((p) => p.id === message.listing_id)
+}
+
 onMounted(() => {
   const productId = route.query.product
-  if (!productId || !chat) return
+  if (!productId) return
   const post = feedStore.posts.find((p) => p.id === productId)
   if (post) chat.sendProductMention(post)
 })
 
 function send() {
+  if (isUploading.value) return
   if (!draft.value.trim() && !photos.value.length) return
   chat.sendMessage(draft.value, photos.value)
   draft.value = ''
@@ -52,20 +69,25 @@ function send() {
       <div class="messages">
         <template v-for="message in chat.messages" :key="message.id">
           <button
-            v-if="message.type === 'product'"
+            v-if="message.type === 'product' && listingFor(message)"
             class="product-card"
-            @click="router.push(`/market/${message.listing.id}`)"
+            @click="router.push(`/market/${message.listing_id}`)"
           >
-            <img v-if="message.listing.image" :src="message.listing.image" class="product-card__thumb" alt="" />
+            <img
+              v-if="listingFor(message).media_urls?.[0]"
+              :src="listingFor(message).media_urls[0]"
+              class="product-card__thumb"
+              alt=""
+            />
             <div class="product-card__meta">
-              <span class="product-card__title">{{ message.listing.title }}</span>
-              <span class="product-card__price">{{ formatPrice(message.listing.price) }}</span>
+              <span class="product-card__title">{{ listingFor(message).title }}</span>
+              <span class="product-card__price">{{ formatPrice(listingFor(message).type_data.price) }}</span>
             </div>
           </button>
           <div
-            v-else
+            v-else-if="message.type !== 'product'"
             class="bubble-row"
-            :class="{ 'bubble-row--mine': message.sender_id === currentUser.id }"
+            :class="{ 'bubble-row--mine': message.sender_id === authState.currentUser?.id }"
           >
             <div class="bubble" :class="{ 'bubble--media': message.media_urls?.length && !message.body }">
               <div v-if="message.media_urls?.length" class="bubble-media">
@@ -81,7 +103,7 @@ function send() {
       </div>
 
       <div v-if="showPhotoPicker" class="attach-panel">
-        <PhotoPicker v-model="photos" :max="4" />
+        <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="4" folder="chat" />
       </div>
       <div v-else-if="photos.length" class="attach-preview">
         <img v-for="src in photos" :key="src" :src="src" alt="" />

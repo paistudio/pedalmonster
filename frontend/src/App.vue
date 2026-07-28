@@ -11,8 +11,7 @@ import { useMarketFilters } from './composables/useMarketFilters'
 import { useFeedStore } from './composables/useFeedStore'
 import { useGroupStore } from './composables/useGroupStore'
 import { useAuth } from './composables/useAuth'
-import { getUserById } from './mocks'
-import { formatPrice } from './utils/formatters'
+import { formatPrice, formatRelativeTime } from './utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -141,7 +140,7 @@ function openNotification(item) {
   const post = feedStore.posts.find((p) => p.id === item.postId)
   if (!post) return
   if (post.type === 'listing') router.push(`/market/${post.id}`)
-  else if (post.type === 'community_post') router.push(`/posts/${post.id}`)
+  else if (post.type === 'community_post' || post.type === 'comment') router.push(`/posts/${post.parent_id || post.id}`)
   else if (post.type === 'group_post') router.push(`/groups/${post.type_data.group_id}`)
 }
 
@@ -312,7 +311,7 @@ async function confirmLogout() {
               <span class="inbox-item__body">{{ item.body }}</span>
             </span>
             <span class="inbox-item__meta">
-              <span class="inbox-item__time">{{ item.time }}</span>
+              <span class="inbox-item__time">{{ formatRelativeTime(item.time) }}</span>
               <span v-if="item.unread" class="inbox-item__dot" />
             </span>
           </button>
@@ -321,17 +320,17 @@ async function confirmLogout() {
         <template v-else>
           <button v-for="item in state.chats" :key="item.id" class="inbox-item" @click="openChatItem(item)">
             <img
-              v-if="getUserById(item.userId)"
+              v-if="item.otherUser"
               class="inbox-item__avatar"
-              :src="getUserById(item.userId).avatar_url"
-              :alt="getUserById(item.userId).username"
+              :src="item.otherUser.avatar_url"
+              :alt="item.otherUser.username"
             />
             <span class="inbox-item__text">
-              <span class="inbox-item__title" :class="{ 'inbox-item__title--unread': item.unread }">{{ getUserById(item.userId)?.username }}</span>
+              <span class="inbox-item__title" :class="{ 'inbox-item__title--unread': item.unread }">{{ item.otherUser?.username }}</span>
               <span class="inbox-item__body">{{ item.preview }}</span>
             </span>
             <span class="inbox-item__meta">
-              <span class="inbox-item__time">{{ item.time }}</span>
+              <span class="inbox-item__time">{{ formatRelativeTime(item.time) }}</span>
               <span v-if="item.unread" class="inbox-item__dot" />
             </span>
           </button>

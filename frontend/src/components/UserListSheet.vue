@@ -1,12 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BottomSheet from './BottomSheet.vue'
-import { currentUser, getUserById } from '../mocks'
+import { useAuth } from '../composables/useAuth'
 
 const props = defineProps({
   open: { type: Boolean, required: true },
-  userIds: { type: Array, required: true },
+  users: { type: Array, required: true },
   title: { type: String, required: true },
   emptyText: { type: String, default: 'No one here yet.' },
   canModerate: { type: Boolean, default: false },
@@ -14,7 +14,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'block'])
 
 const router = useRouter()
-const users = computed(() => props.userIds.map((id) => getUserById(id)).filter(Boolean))
+const { state: authState } = useAuth()
 const pendingBlockId = ref(null)
 
 function openProfile(user) {
@@ -46,7 +46,7 @@ function confirmBlock(userId) {
           <span class="username">{{ user.username }}</span>
         </button>
 
-        <template v-if="canModerate && user.id !== currentUser.id">
+        <template v-if="canModerate && user.id !== authState.currentUser?.id">
           <div v-if="pendingBlockId === user.id" class="block-confirm">
             <button class="block-confirm__cancel" @click="cancelBlock">Cancel</button>
             <button class="block-confirm__confirm" @click="confirmBlock(user.id)">Block</button>

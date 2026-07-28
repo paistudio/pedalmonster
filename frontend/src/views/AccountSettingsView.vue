@@ -6,23 +6,28 @@ import LocationPickerSheet from '../components/LocationPickerSheet.vue'
 import { useUserLocation } from '../composables/useUserLocation'
 import { useCities, getCityById } from '../composables/useCities'
 import { useAuth } from '../composables/useAuth'
+import { useUpload } from '../composables/useUpload'
 import { supabase } from '../lib/supabase'
 
 const router = useRouter()
 const { state: locationState, openPicker, closePicker, setManualCity } = useUserLocation()
 const { state: authState } = useAuth()
+const { uploadFile } = useUpload()
 useCities()
 
 const currentUser = computed(() => authState.currentUser || {})
 const avatarInput = ref(null)
 
-function onAvatarSelected(e) {
+async function onAvatarSelected(e) {
   const file = e.target.files?.[0]
-  if (!file) return
-  // Real Storage upload lands with the rest of the photo-upload wiring — local preview only
-  // for now, see docs/19-supabase-only-backend-plan.md.
-  if (authState.currentUser) authState.currentUser.avatar_url = URL.createObjectURL(file)
   e.target.value = ''
+  if (!file || !authState.currentUser) return
+  const avatarUrl = await uploadFile(file, 'avatars')
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', authState.currentUser.id)
+  if (!error) authState.currentUser.avatar_url = avatarUrl
 }
 
 const account = reactive({ username: '', email: '' })

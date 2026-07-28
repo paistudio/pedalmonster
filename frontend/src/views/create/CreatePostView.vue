@@ -4,13 +4,13 @@ import { useRouter } from 'vue-router'
 import CreationHeader from '../../components/create/CreationHeader.vue'
 import PhotoPicker from '../../components/create/PhotoPicker.vue'
 import { useFeedStore } from '../../composables/useFeedStore'
-import { addPoints } from '../../mocks'
 
 const router = useRouter()
 const store = useFeedStore()
 
 const photos = ref([])
 const description = ref('')
+const isUploading = ref(false)
 
 const errors = reactive({})
 
@@ -19,9 +19,12 @@ function validate() {
   return !errors.description
 }
 
-function submit() {
+async function submit() {
+  if (isUploading.value) return
   if (!validate()) return
-  store.createPost({
+  // Activity points (+2) are awarded server-side by a DB trigger on insert, not here — see
+  // docs/19-supabase-only-backend-plan.md.
+  await store.createPost({
     type: 'community_post',
     title: null,
     description: description.value.trim(),
@@ -29,7 +32,6 @@ function submit() {
     location: null,
     type_data: {},
   })
-  addPoints(2)
   router.push('/')
 }
 </script>
@@ -52,13 +54,13 @@ function submit() {
 
       <div class="field">
         <label class="field-label">Photo (optional)</label>
-        <PhotoPicker v-model="photos" :max="3" />
+        <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="3" folder="posts" />
       </div>
     </div>
 
     <footer class="form-footer">
       <button class="btn btn-secondary" @click="router.push('/')">Cancel</button>
-      <button class="btn btn-primary" @click="submit">Post</button>
+      <button class="btn btn-primary" :disabled="isUploading" @click="submit">Post</button>
     </footer>
   </div>
 </template>

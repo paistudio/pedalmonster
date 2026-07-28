@@ -2,8 +2,11 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const { state: authState } = useAuth()
 
 const CATEGORIES = [
   { value: 'bug', label: 'Something is broken' },
@@ -17,11 +20,18 @@ const description = ref('')
 const errors = reactive({})
 const submitted = ref(false)
 
-function submit() {
+async function submit() {
   errors.category = category.value ? '' : 'Pick a category'
   errors.description = description.value.trim() ? '' : 'Tell us what happened'
   if (errors.category || errors.description) return
+  if (!authState.currentUser) return
 
+  const { error } = await supabase.from('reports').insert({
+    user_id: authState.currentUser.id,
+    category: category.value,
+    description: description.value.trim(),
+  })
+  if (error) return
   submitted.value = true
 }
 </script>

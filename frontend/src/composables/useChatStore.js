@@ -1,72 +1,84 @@
 import { reactive } from 'vue'
-import { currentUser } from '../mocks'
+import { supabase } from '../lib/supabase'
+import { useAuth } from './useAuth'
 
-// Not part of docs/02-data-model.md (no Message/Chat entity defined there yet) —
-// client-only thread state to satisfy docs/07-marketplace.md's chat requirement in Phase 1.
-// Threads are keyed by the OTHER participant's user id — the chat room is a user-to-user
-// conversation, not a per-listing room. A listing is only ever attached as a message inside it.
-const threads = reactive({})
+// Threads are keyed by the OTHER participant's user id in local state — the chat room is a
+// user-to-user conversation, not a per-listing room. A listing is only ever mentioned inside
+// one via a `type=product` message, see sendProductMention.
+const threadsByOtherUser = reactive({})
 
-const CANNED_REPLIES = [
-  'Halo, masih ada kak.',
-  'Boleh nego dikit, langsung aja chat ya.',
-  'Siap, bisa COD atau kirim.',
-]
+const { state: authState } = useAuth()
+
+function pairIds(otherUserId) {
+  return [authState.currentUser.id, otherUserId].sort()
+}
+
+// Mirrors the chat-send-message Edge Function's find-or-create logic (same sorted-pair lookup)
+// so messages can be loaded before the first message is ever sent in a thread.
+async function findThreadId(otherUserId) {
+  const [userOneId, userTwoId] = pairIds(otherUserId)
+  const { data } = await supabase
+    .from('chat_threads')
+    .select('id')
+    .eq('user_one_id', userOneId)
+    .eq('user_two_id', userTwoId)
+    .maybeSingle()
+  return data?.id ?? null
+}
+
+async function loadMessages(otherUserId) {
+  const entry = threadsByOtherUser[otherUserId]
+  const threadId = await findThreadId(otherUserId)
+  entry.threadId = threadId
+  if (!threadId) return
+
+  const { data } = await supabase
+    .from('chat_messages')
+    .select('*')
+    .eq('chat_thread_id', threadId)
+    .order('created_at', { ascending: true })
+  entry.messages.splice(0, entry.messages.length, ...(data || []))
+
+  await supabase
+    .from('chat_thread_reads')
+    .upsert(
+      { chat_thread_id: threadId, user_id: authState.currentUser.id, last_read_at: new Date().toISOString() },
+      { onConflict: 'chat_thread_id,user_id' },
+    )
+}
 
 export function useChatStore(otherUserId) {
-  if (!threads[otherUserId]) {
-    threads[otherUserId] = []
+  if (!threadsByOtherUser[otherUserId]) {
+    threadsByOtherUser[otherUserId] = reactive({ threadId: null, messages: [], loaded: false })
+    loadMessages(otherUserId).then(() => {
+      threadsByOtherUser[otherUserId].loaded = true
+    })
   }
-  const messages = threads[otherUserId]
+  const entry = threadsByOtherUser[otherUserId]
 
-  function replyFromOther(reply) {
-    if (!otherUserId || otherUserId === currentUser.id) return
-    setTimeout(() => {
-      messages.push({
-        id: `m-${Date.now()}-r`,
-        type: 'text',
-        sender_id: otherUserId,
-        body: reply,
-        created_at: new Date().toISOString(),
-      })
-    }, 900)
+  async function invokeSend(payload) {
+    const { data, error } = await supabase.functions.invoke('chat-send-message', {
+      body: { other_user_id: otherUserId, ...payload },
+    })
+    if (error) return
+    entry.threadId = data.chat_thread_id
+    entry.messages.push(data)
   }
 
   function sendMessage(body, media_urls = []) {
     const text = body.trim()
     if (!text && !media_urls.length) return
-    messages.push({
-      id: `m-${Date.now()}`,
-      type: 'text',
-      sender_id: currentUser.id,
-      body: text,
-      media_urls,
-      created_at: new Date().toISOString(),
-    })
-    replyFromOther(CANNED_REPLIES[Math.floor(Math.random() * CANNED_REPLIES.length)])
+    invokeSend({ body: text, media_urls })
   }
 
   // Attaches a listing as a product-card message — called when the thread is opened via
   // a listing's "Chat Seller" CTA. Skipped if the same listing is already the most recent
   // message, so re-tapping "Chat Seller" on the same product doesn't spam duplicate cards.
   function sendProductMention(post) {
-    const last = messages[messages.length - 1]
-    if (last?.type === 'product' && last.listing.id === post.id) return
-
-    messages.push({
-      id: `m-${Date.now()}-product`,
-      type: 'product',
-      sender_id: currentUser.id,
-      listing: {
-        id: post.id,
-        title: post.title,
-        price: post.type_data.price,
-        image: post.media_urls[0] || null,
-      },
-      created_at: new Date().toISOString(),
-    })
-    replyFromOther('Halo, boleh tanya-tanya soal ini.')
+    const last = entry.messages[entry.messages.length - 1]
+    if (last?.type === 'product' && last.listing_id === post.id) return
+    invokeSend({ type: 'product', listing_id: post.id })
   }
 
-  return { messages, sendMessage, sendProductMention }
+  return { messages: entry.messages, sendMessage, sendProductMention }
 }

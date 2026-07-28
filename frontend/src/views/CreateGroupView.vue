@@ -6,7 +6,9 @@ import CreationHeader from '../components/create/CreationHeader.vue'
 import PhotoPicker from '../components/create/PhotoPicker.vue'
 import LocationPickerSheet from '../components/LocationPickerSheet.vue'
 import { useGroupStore } from '../composables/useGroupStore'
-import { getCityById } from '../mocks'
+import { useCities, getCityById } from '../composables/useCities'
+
+useCities()
 
 const router = useRouter()
 const store = useGroupStore()
@@ -16,6 +18,7 @@ const description = ref('')
 const photos = ref([])
 const locationCityId = ref(null)
 const isLocationPickerOpen = ref(false)
+const isUploading = ref(false)
 
 const errors = reactive({})
 
@@ -27,9 +30,10 @@ function validate() {
   return !errors.name && !errors.description
 }
 
-function submit() {
+async function submit() {
+  if (isUploading.value) return
   if (!validate()) return
-  const group = store.createGroup({
+  const group = await store.createGroup({
     name: name.value,
     description: description.value,
     photo_url: photos.value[0] ?? `https://picsum.photos/seed/${Date.now()}/300/300`,
@@ -68,7 +72,7 @@ function submit() {
 
       <div class="field">
         <label class="field-label">Group photo (optional)</label>
-        <PhotoPicker v-model="photos" :max="1" />
+        <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="1" folder="groups" />
       </div>
 
       <div class="field">
@@ -82,7 +86,7 @@ function submit() {
 
     <footer class="form-footer">
       <button class="btn btn-secondary" @click="router.back()">Cancel</button>
-      <button class="btn btn-primary" @click="submit">Create Group</button>
+      <button class="btn btn-primary" :disabled="isUploading" @click="submit">Create Group</button>
     </footer>
 
     <LocationPickerSheet

@@ -11,18 +11,27 @@ interface Payload {
   other_user_id: string;
   body?: string;
   media_urls?: string[];
+  // "product" is an auto-inserted listing mention (useChatStore's sendProductMention,
+  // triggered by a listing's "Chat Seller" CTA) — listing_id is required for it and
+  // ignored otherwise, matching docs/02-data-model.md's ChatMessage.type.
+  type?: "text" | "product";
+  listing_id?: string;
 }
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     const callerId = ctx.userClaims!.id;
-    const { other_user_id, body, media_urls } = (await req.json()) as Payload;
+    const { other_user_id, body, media_urls, type, listing_id } = (await req.json()) as Payload;
 
     if (!other_user_id) {
       return Response.json({ error: "other_user_id is required" }, { status: 400 });
     }
+    const messageType = type === "product" ? "product" : "text";
+    if (messageType === "product" && !listing_id) {
+      return Response.json({ error: "listing_id is required for a product message" }, { status: 400 });
+    }
     const trimmedBody = body?.trim() || null;
-    if (!trimmedBody && !(media_urls && media_urls.length)) {
+    if (messageType === "text" && !trimmedBody && !(media_urls && media_urls.length)) {
       return Response.json({ error: "body or media_urls is required" }, { status: 400 });
     }
 
@@ -58,9 +67,10 @@ export default {
       .insert({
         chat_thread_id: threadId,
         sender_id: callerId,
-        type: "text",
+        type: messageType,
         body: trimmedBody,
         media_urls: media_urls ?? [],
+        listing_id: messageType === "product" ? listing_id : null,
       })
       .select()
       .single();

@@ -18,6 +18,7 @@ const isOwner = computed(() => (post.value ? store.isPostOwner(post.value) : fal
 
 const description = ref(post.value?.description ?? '')
 const photos = ref(post.value?.media_urls ? [...post.value.media_urls] : [])
+const isUploading = ref(false)
 
 const errors = reactive({})
 
@@ -26,9 +27,10 @@ function validate() {
   return !errors.description
 }
 
-function submit() {
+async function submit() {
+  if (isUploading.value) return
   if (!validate()) return
-  store.updatePost(post.value, {
+  await store.updatePost(post.value, {
     description: description.value,
     media_urls: photos.value,
   })
@@ -60,13 +62,13 @@ function submit() {
 
       <div class="field">
         <label class="field-label">Photo (optional)</label>
-        <PhotoPicker v-model="photos" :max="3" />
+        <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="3" folder="posts" />
       </div>
     </div>
 
     <footer class="form-footer">
       <button class="btn btn-secondary" @click="router.back()">Cancel</button>
-      <button class="btn btn-primary" @click="submit">Save changes</button>
+      <button class="btn btn-primary" :disabled="isUploading" @click="submit">Save changes</button>
     </footer>
   </div>
 

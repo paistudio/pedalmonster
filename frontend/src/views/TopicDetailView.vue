@@ -1,15 +1,16 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import PostCard from '../components/PostCard.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useAppState } from '../composables/useAppState'
+import { supabase } from '../lib/supabase'
 
 const route = useRoute()
 const router = useRouter()
 const feedStore = useFeedStore()
-const { state } = useAppState()
+const { state, toggleTagFollow } = useAppState()
 
 const tagName = computed(() => route.params.tag || 'Topic')
 const isFollowing = computed(() => state.followedTags.includes(tagName.value))
@@ -20,12 +21,23 @@ const relatedPosts = computed(() =>
   ),
 )
 
+// tag_follows' RLS is fully self-scoped (select limited to user_id = auth.uid()), so a plain
+// client query can't compute a cross-user follower count — this SECURITY DEFINER function
+// bypasses RLS for just that one aggregate read, see docs/19-supabase-only-backend-plan.md.
+const followerCount = ref(0)
+watch(
+  tagName,
+  async (tag) => {
+    const { data } = await supabase.rpc('tag_follower_count', { p_tag_name: tag })
+    followerCount.value = data ?? 0
+  },
+  { immediate: true },
+)
+
 function toggleFollow() {
-  if (isFollowing.value) {
-    state.followedTags = state.followedTags.filter((tag) => tag !== tagName.value)
-  } else {
-    state.followedTags = [...state.followedTags, tagName.value]
-  }
+  const wasFollowing = isFollowing.value
+  toggleTagFollow(tagName.value)
+  followerCount.value += wasFollowing ? -1 : 1
 }
 </script>
 
@@ -44,7 +56,8 @@ function toggleFollow() {
     <section class="topic-summary">
       <p>Discover the latest posts and conversations around this topic.</p>
       <div class="topic-stats">
-        <span>{{ state.followedTags.includes(tagName) ? 'Following now' : 'Not followed yet' }}</span>
+        <span>{{ followerCount }} {{ followerCount === 1 ? 'follower' : 'followers' }}</span>
+        <span> · {{ isFollowing ? 'Following now' : 'Not followed yet' }}</span>
       </div>
     </section>
 

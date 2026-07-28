@@ -1,8 +1,11 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import PhotoPicker from './create/PhotoPicker.vue'
-import { users, currentUser } from '../mocks'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../composables/useAuth'
+
+const { state: authState } = useAuth()
 
 const props = defineProps({
   placeholder: { type: String, default: 'Write a comment...' },
@@ -13,16 +16,26 @@ const emit = defineEmits(['submit'])
 const draft = ref('')
 const photos = ref([])
 const showPhotoPicker = ref(false)
+const isUploading = ref(false)
 const inputEl = ref(null)
 // null = no active "@" trigger; otherwise the partial username typed after the "@"
 const mentionQuery = ref(null)
+const mentionMatches = ref([])
 
-const mentionMatches = computed(() => {
-  if (mentionQuery.value === null) return []
-  const q = mentionQuery.value.toLowerCase()
-  return users
-    .filter((u) => u.id !== currentUser.id && u.username.toLowerCase().includes(q))
-    .slice(0, 5)
+// @mention extraction itself happens in a DB trigger on save (see
+// docs/19-supabase-only-backend-plan.md) — this is just the autocomplete dropdown UX.
+watch(mentionQuery, async (query) => {
+  if (query === null) {
+    mentionMatches.value = []
+    return
+  }
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .ilike('username', `%${query}%`)
+    .neq('id', authState.currentUser?.id || '00000000-0000-0000-0000-000000000000')
+    .limit(5)
+  mentionMatches.value = data || []
 })
 
 // Looks backward from the caret for an unfinished "@handle" so the dropdown
@@ -51,6 +64,7 @@ function selectMention(user) {
 }
 
 function submit() {
+  if (isUploading.value) return
   const text = draft.value.trim()
   if (!text && !photos.value.length) return
   emit('submit', { body: text, media_urls: photos.value })
@@ -76,7 +90,7 @@ function submit() {
     </div>
 
     <div v-if="allowAttachments && showPhotoPicker" class="attach-panel">
-      <PhotoPicker v-model="photos" :max="4" />
+      <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="4" folder="comments" />
     </div>
     <div v-else-if="photos.length" class="attach-preview">
       <img v-for="src in photos" :key="src" :src="src" alt="" />

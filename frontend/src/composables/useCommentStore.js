@@ -1,94 +1,130 @@
 import { reactive } from 'vue'
-import { comments as seedComments, currentUser, addPoints, users } from '../mocks'
+import { supabase } from '../lib/supabase'
+import { useAuth } from './useAuth'
 
 // A "comment" is a Post row with type='comment' and parent_id set — see
 // docs/02-data-model.md's unified Post entity. This store manages that slice.
+// mentioned_user_ids and like_count/comment_count are maintained by DB triggers now, not
+// client-side logic — see docs/19-supabase-only-backend-plan.md.
 const state = reactive({
-  comments: [...seedComments],
+  commentsByPost: {},
   likedByMe: new Set(),
 })
 
-// Pulls @username tokens out of a comment's description and resolves them against
-// known users, so a mention only "counts" if it matches a real account.
-function extractMentionedUserIds(description) {
-  const handles = description.match(/@([a-zA-Z0-9._]+)/g) || []
-  const usernames = new Set(handles.map((h) => h.slice(1).toLowerCase()))
-  return users.filter((u) => usernames.has(u.username.toLowerCase())).map((u) => u.id)
+const { state: authState } = useAuth()
+
+async function attachAuthors(comments) {
+  const userIds = [...new Set(comments.map((c) => c.user_id))]
+  if (!userIds.length) return comments
+  const { data: authors } = await supabase.from('profiles').select('*').in('id', userIds)
+  const authorsById = Object.fromEntries((authors || []).map((a) => [a.id, a]))
+  return comments.map((c) => ({ ...c, author: authorsById[c.user_id] }))
 }
 
 export function useCommentStore() {
   function getCommentsForPost(parentId) {
-    return state.comments
-      .filter((comment) => comment.parent_id === parentId)
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    return state.commentsByPost[parentId] || []
+  }
+
+  async function loadComments(parentId) {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('parent_id', parentId)
+      .eq('type', 'comment')
+      .order('created_at', { ascending: true })
+    if (error) return
+    state.commentsByPost[parentId] = await attachAuthors(data)
+
+    if (authState.currentUser && data.length) {
+      const { data: likes } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_id', authState.currentUser.id)
+        .in('post_id', data.map((c) => c.id))
+      likes?.forEach((like) => state.likedByMe.add(like.post_id))
+    }
   }
 
   function commentCountFor(parentId) {
-    return state.comments.filter((comment) => comment.parent_id === parentId).length
+    return getCommentsForPost(parentId).length
   }
 
   function hasLiked(commentId) {
     return state.likedByMe.has(commentId)
   }
 
-  function toggleLike(comment) {
+  async function toggleLike(comment) {
+    if (!authState.currentUser) return
+    const userId = authState.currentUser.id
     if (state.likedByMe.has(comment.id)) {
+      const { error } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('post_id', comment.id)
+        .eq('user_id', userId)
+      if (error) return
       state.likedByMe.delete(comment.id)
       comment.like_count -= 1
-      if (comment.user_id === currentUser.id) addPoints(-1)
     } else {
+      const { error } = await supabase.from('post_likes').insert({ post_id: comment.id, user_id: userId })
+      if (error) return
       state.likedByMe.add(comment.id)
       comment.like_count += 1
-      if (comment.user_id === currentUser.id) addPoints(1)
     }
   }
 
-  function addComment(post, description, media_urls = []) {
+  async function addComment(post, description, media_urls = []) {
     const text = description.trim()
     if (!text && !media_urls.length) return
-    const comment = {
-      id: `a-${Date.now()}`,
-      type: 'comment',
-      parent_id: post.id,
-      user_id: currentUser.id,
-      description: text,
-      media_urls,
-      mentioned_user_ids: extractMentionedUserIds(text),
-      like_count: 0,
-      created_at: new Date().toISOString(),
-      type_data: {},
-    }
-    state.comments.push(comment)
-    addPoints(3)
+
+    const { data, error } = await supabase
+      .from('posts')
+      .insert({
+        user_id: authState.currentUser.id,
+        type: 'comment',
+        parent_id: post.id,
+        description: text,
+        media_urls,
+      })
+      .select()
+      .single()
+    if (error) return
+
+    const comment = { ...data, author: authState.currentUser }
+    if (!state.commentsByPost[post.id]) state.commentsByPost[post.id] = []
+    state.commentsByPost[post.id].push(comment)
+    post.comment_count = (post.comment_count || 0) + 1
     return comment
   }
 
   function isOwnComment(comment) {
-    return comment.user_id === currentUser.id
+    return comment.user_id === authState.currentUser?.id
   }
 
-  function editComment(comment, description) {
+  async function editComment(comment, description) {
     const text = description.trim()
     if (!text) return
+    const { error } = await supabase.from('posts').update({ description: text }).eq('id', comment.id)
+    if (error) return
     comment.description = text
-    comment.mentioned_user_ids = extractMentionedUserIds(text)
   }
 
-  function deleteComment(comment) {
-    const idx = state.comments.findIndex((c) => c.id === comment.id)
-    if (idx !== -1) state.comments.splice(idx, 1)
-  }
-
-  // Called when a post is deleted, so its comments (Post rows with parent_id
-  // pointing at it) don't linger orphaned.
-  function removeCommentsForPost(parentId) {
-    for (let i = state.comments.length - 1; i >= 0; i -= 1) {
-      if (state.comments[i].parent_id === parentId) state.comments.splice(i, 1)
+  // Cascade to the parent's comment_count is handled by the DB trigger; this just deletes
+  // the row and syncs local reactive state.
+  async function deleteComment(comment) {
+    const { error } = await supabase.from('posts').delete().eq('id', comment.id)
+    if (error) return
+    const list = state.commentsByPost[comment.parent_id]
+    if (list) {
+      const idx = list.findIndex((c) => c.id === comment.id)
+      if (idx !== -1) list.splice(idx, 1)
     }
   }
 
   return {
     getCommentsForPost,
+    loadComments,
     commentCountFor,
     hasLiked,
     toggleLike,
@@ -96,6 +132,5 @@ export function useCommentStore() {
     isOwnComment,
     editComment,
     deleteComment,
-    removeCommentsForPost,
   }
 }

@@ -2,11 +2,16 @@
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import BottomSheet from './BottomSheet.vue'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../composables/useAuth'
 
-defineProps({
+const props = defineProps({
   open: { type: Boolean, required: true },
+  postId: { type: String, required: true },
 })
 const emit = defineEmits(['close'])
+
+const { state: authState } = useAuth()
 
 const REASONS = [
   { value: 'spam', label: 'Spam' },
@@ -18,8 +23,16 @@ const REASONS = [
 const reason = ref('')
 const submitted = ref(false)
 
-function submit() {
-  if (!reason.value) return
+// Post reports are reason-only in MVP (no free-text field) — description is null,
+// see docs/02-data-model.md's Report entity.
+async function submit() {
+  if (!reason.value || !authState.currentUser) return
+  const { error } = await supabase.from('reports').insert({
+    user_id: authState.currentUser.id,
+    post_id: props.postId,
+    category: reason.value,
+  })
+  if (error) return
   submitted.value = true
 }
 

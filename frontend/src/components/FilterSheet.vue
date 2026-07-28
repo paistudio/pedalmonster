@@ -2,7 +2,9 @@
 import { computed, ref } from 'vue'
 import BottomSheet from './BottomSheet.vue'
 import LocationPickerSheet from './LocationPickerSheet.vue'
-import { getCityById } from '../mocks'
+import { useCities, getCityById } from '../composables/useCities'
+
+useCities()
 
 const props = defineProps({
   open: { type: Boolean, required: true },

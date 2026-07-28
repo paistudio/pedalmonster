@@ -19,6 +19,7 @@ const username = ref('')
 const email = ref('')
 const password = ref('')
 const avatar = ref([])
+const isUploadingAvatar = ref(false)
 const errors = reactive({})
 const submitting = ref(false)
 const needsEmailConfirmation = ref(false)
@@ -34,17 +35,16 @@ function validate() {
 }
 
 async function submit() {
-  if (!validate() || submitting.value) return
+  if (!validate() || submitting.value || isUploadingAvatar.value) return
   submitting.value = true
   errors.form = ''
 
-  // Avatar upload to Supabase Storage lands with the rest of the photo-upload wiring — the
-  // picker only produces local blob URLs today, see docs/19-supabase-only-backend-plan.md.
   const { error, needsEmailConfirmation: pending } = await signUp({
     email: email.value.trim(),
     password: password.value,
     username: username.value.trim(),
     location_city_id: locationState.resolvedCityId,
+    avatarUrl: avatar.value[0] ?? null,
   })
 
   submitting.value = false
@@ -73,7 +73,7 @@ async function submit() {
       <div class="form-step">
         <div class="field">
           <label class="field-label">Profile photo (optional)</label>
-          <PhotoPicker v-model="avatar" :max="1" />
+          <PhotoPicker v-model="avatar" v-model:uploading="isUploadingAvatar" :max="1" folder="avatars" />
         </div>
 
         <div class="field">
@@ -130,7 +130,7 @@ async function submit() {
 
       <footer class="form-footer">
         <button class="btn btn-secondary" @click="router.push('/login')">Cancel</button>
-        <button class="btn btn-primary" :disabled="submitting" @click="submit">
+        <button class="btn btn-primary" :disabled="submitting || isUploadingAvatar" @click="submit">
           {{ submitting ? 'Creating…' : 'Create Account' }}
         </button>
       </footer>

@@ -1,20 +1,27 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import CreationHeader from '../../components/create/CreationHeader.vue'
 import PhotoPicker from '../../components/create/PhotoPicker.vue'
 import { useFeedStore } from '../../composables/useFeedStore'
-import { groups } from '../../mocks'
+import { useGroupStore } from '../../composables/useGroupStore'
 
 const router = useRouter()
 const store = useFeedStore()
+const groupStore = useGroupStore()
 
-const myGroups = computed(() => groups.filter((group) => store.isGroupJoined(group.id)))
+const myGroups = computed(() => groupStore.groups.filter((group) => store.isGroupJoined(group.id)))
 
 const groupId = ref(myGroups.value[0]?.id ?? '')
+// Groups + memberships load asynchronously — myGroups is often still empty at setup time,
+// so the ref() default above misses it. Fill it in once the real data arrives.
+watch(myGroups, (list) => {
+  if (!groupId.value && list.length) groupId.value = list[0].id
+})
 const title = ref('')
 const description = ref('')
 const photos = ref([])
+const isUploading = ref(false)
 
 const errors = reactive({})
 
@@ -25,9 +32,10 @@ function validate() {
   return !errors.groupId && !errors.title && !errors.description
 }
 
-function submit() {
+async function submit() {
+  if (isUploading.value) return
   if (!validate()) return
-  store.createPost({
+  await store.createPost({
     type: 'group_post',
     title: title.value.trim(),
     description: description.value.trim(),
@@ -85,14 +93,14 @@ function submit() {
 
         <div class="field">
           <label class="field-label">Photo (optional)</label>
-          <PhotoPicker v-model="photos" :max="3" />
+          <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="3" folder="group-posts" />
         </div>
       </template>
     </div>
 
     <footer class="form-footer">
       <button class="btn btn-secondary" @click="router.push('/')">Cancel</button>
-      <button class="btn btn-primary" :disabled="!myGroups.length" @click="submit">Post</button>
+      <button class="btn btn-primary" :disabled="!myGroups.length || isUploading" @click="submit">Post</button>
     </footer>
   </div>
 </template>

@@ -1,26 +1,69 @@
 <script setup>
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useUpload } from '../../composables/useUpload'
 
 const props = defineProps({
   modelValue: { type: Array, required: true },
   max: { type: Number, default: 5 },
+  // Storage path prefix (docs/19-supabase-only-backend-plan.md's `media` bucket) — keeps
+  // uploads from different features browsable/cleanable separately in the bucket.
+  folder: { type: String, default: 'uploads' },
 })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'update:uploading'])
 
+const { uploadFile } = useUpload()
 const cameraInput = ref(null)
 const galleryInput = ref(null)
+const pendingCount = ref(0)
+
+function setPending(delta) {
+  pendingCount.value += delta
+  emit('update:uploading', pendingCount.value > 0)
+}
 
 function onFilesSelected(e) {
   const files = Array.from(e.target.files || [])
   const room = props.max - props.modelValue.length
-  const urls = files.slice(0, room).map((file) => URL.createObjectURL(file))
-  emit('update:modelValue', [...props.modelValue, ...urls])
+  const selected = files.slice(0, room)
+  const blobUrls = selected.map((file) => URL.createObjectURL(file))
+  // Show local previews immediately; each blob URL is swapped for its real Supabase Storage
+  // URL (or dropped, on failure) once that file's upload resolves — the array can be edited
+  // (photos removed) while uploads are still in flight, so we look items up by identity
+  // (indexOf) rather than trusting a captured index.
+  emit('update:modelValue', [...props.modelValue, ...blobUrls])
   e.target.value = ''
+
+  selected.forEach((file, i) => {
+    const blobUrl = blobUrls[i]
+    setPending(1)
+    uploadFile(file, props.folder)
+      .then((realUrl) => {
+        const idx = props.modelValue.indexOf(blobUrl)
+        if (idx !== -1) {
+          const next = [...props.modelValue]
+          next[idx] = realUrl
+          emit('update:modelValue', next)
+        }
+      })
+      .catch(() => {
+        const idx = props.modelValue.indexOf(blobUrl)
+        if (idx !== -1) {
+          const next = [...props.modelValue]
+          next.splice(idx, 1)
+          emit('update:modelValue', next)
+        }
+      })
+      .finally(() => {
+        URL.revokeObjectURL(blobUrl)
+        setPending(-1)
+      })
+  })
 }
 
 function removePhoto(index) {
-  URL.revokeObjectURL(props.modelValue[index])
+  const url = props.modelValue[index]
+  if (url.startsWith('blob:')) URL.revokeObjectURL(url)
   const next = [...props.modelValue]
   next.splice(index, 1)
   emit('update:modelValue', next)

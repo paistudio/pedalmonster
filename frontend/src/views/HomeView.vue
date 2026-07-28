@@ -8,7 +8,9 @@ import LocationPickerSheet from '../components/LocationPickerSheet.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useUserLocation } from '../composables/useUserLocation'
 import { distanceBetweenCities, NEARBY_RADIUS_KM } from '../utils/geo'
-import { getCityById } from '../mocks'
+import { useCities, getCityById } from '../composables/useCities'
+
+useCities()
 
 const PAGE_SIZE = 6
 

@@ -15,6 +15,7 @@ const isOwner = computed(() => (group.value ? store.isOwner(group.value.id) : fa
 const name = ref(group.value?.name ?? '')
 const description = ref(group.value?.description ?? '')
 const photos = ref(group.value?.photo_url ? [group.value.photo_url] : [])
+const isUploading = ref(false)
 
 const errors = reactive({})
 
@@ -24,9 +25,10 @@ function validate() {
   return !errors.name && !errors.description
 }
 
-function submit() {
+async function submit() {
+  if (isUploading.value) return
   if (!validate()) return
-  store.updateGroup(group.value.id, {
+  await store.updateGroup(group.value.id, {
     name: name.value,
     description: description.value,
     photo_url: photos.value[0] ?? group.value.photo_url,
@@ -70,10 +72,10 @@ function submit() {
 
       <div class="field">
         <label class="field-label">Group photo</label>
-        <PhotoPicker v-model="photos" :max="1" />
+        <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="1" folder="groups" />
       </div>
 
-      <button class="btn btn-primary" @click="submit">Save changes</button>
+      <button class="btn btn-primary" :disabled="isUploading" @click="submit">Save changes</button>
     </div>
   </div>
 

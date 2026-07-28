@@ -10,7 +10,7 @@ import ReportPostSheet from '../components/ReportPostSheet.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useCommentStore } from '../composables/useCommentStore'
 import { useAppState } from '../composables/useAppState'
-import { getGroupById } from '../mocks'
+import { useGroupStore } from '../composables/useGroupStore'
 import { formatRelativeTime } from '../utils/formatters'
 
 const DETAIL_TYPES = ['community_post', 'group_post']
@@ -20,6 +20,7 @@ const router = useRouter()
 const feedStore = useFeedStore()
 const commentStore = useCommentStore()
 const { isPostLiked, toggleLike } = useAppState()
+const groupStore = useGroupStore()
 
 const isMenuOpen = ref(false)
 const isDeleteConfirmOpen = ref(false)
@@ -30,7 +31,7 @@ const comments = computed(() => (post.value ? commentStore.getCommentsForPost(po
 const isOwner = computed(() => (post.value ? feedStore.isPostOwner(post.value) : false))
 const liked = computed(() => (post.value ? isPostLiked(post.value.id) : false))
 const group = computed(() =>
-  post.value?.type === 'group_post' ? getGroupById(post.value.type_data.group_id) : null,
+  post.value?.type === 'group_post' ? groupStore.groups.find((g) => g.id === post.value.type_data.group_id) : null,
 )
 
 function submitComment({ body, media_urls }) {
@@ -139,7 +140,7 @@ function reportPost() {
       </div>
     </BottomSheet>
 
-    <ReportPostSheet :open="isReportOpen" @close="isReportOpen = false" />
+    <ReportPostSheet :open="isReportOpen" :post-id="post.id" @close="isReportOpen = false" />
   </div>
 
   <div v-else class="not-found">

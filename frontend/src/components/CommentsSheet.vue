@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import BottomSheet from './BottomSheet.vue'
 import CommentList from './CommentList.vue'
 import CommentComposer from './CommentComposer.vue'
@@ -14,6 +14,14 @@ const emit = defineEmits(['close'])
 const commentStore = useCommentStore()
 const comments = computed(() =>
   props.post ? commentStore.getCommentsForPost(props.post.id) : [],
+)
+
+watch(
+  () => [props.open, props.post?.id],
+  ([open, postId]) => {
+    if (open && postId) commentStore.loadComments(postId)
+  },
+  { immediate: true },
 )
 
 function submitComment({ body, media_urls }) {

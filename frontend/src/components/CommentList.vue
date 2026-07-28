@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useCommentStore } from '../composables/useCommentStore'
-import { getUserById } from '../mocks'
 import { formatRelativeTime } from '../utils/formatters'
 
 const PREVIEW_COUNT = 5
@@ -65,12 +64,12 @@ function confirmDelete(comment) {
     <div v-for="comment in visibleComments" :key="comment.id" class="comment-row">
       <img
         class="avatar avatar--sm"
-        :src="getUserById(comment.user_id)?.avatar_url"
-        :alt="getUserById(comment.user_id)?.username"
+        :src="comment.author?.avatar_url"
+        :alt="comment.author?.username"
       />
       <div class="comment-content">
         <div class="comment-header">
-          <span class="username">{{ getUserById(comment.user_id)?.username }}</span>
+          <span class="username">{{ comment.author?.username }}</span>
           <span class="timestamp">{{ formatRelativeTime(comment.created_at) }}</span>
         </div>
 

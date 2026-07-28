@@ -6,8 +6,7 @@ import PhotoGallery from './PhotoGallery.vue'
 import CommentsSheet from './CommentsSheet.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useAppState } from '../composables/useAppState'
-import { useCommentStore } from '../composables/useCommentStore'
-import { getGroupById } from '../mocks'
+import { useGroupStore } from '../composables/useGroupStore'
 import { formatRelativeTime, formatPrice } from '../utils/formatters'
 
 const props = defineProps({
@@ -19,11 +18,12 @@ const props = defineProps({
 const router = useRouter()
 const store = useFeedStore()
 const { isPostLiked, toggleLike } = useAppState()
-const commentStore = useCommentStore()
 const expanded = ref(false)
 const isCommentsSheetOpen = ref(false)
 const liked = computed(() => isPostLiked(props.post.id))
-const commentCount = computed(() => commentStore.commentCountFor(props.post.id))
+// comment_count is maintained by a DB trigger, see docs/19-supabase-only-backend-plan.md —
+// reading it straight off the post avoids needing every comment thread loaded just to count.
+const commentCount = computed(() => props.post.comment_count)
 
 function openDetail() {
   if (props.post.type === 'listing') router.push(`/market/${props.post.id}`)
@@ -66,8 +66,9 @@ const badge = computed(() => BADGES[props.post.type])
 const relativeTime = computed(() => formatRelativeTime(props.post.created_at))
 const isLong = computed(() => props.post.description.length > 100)
 
+const groupStore = useGroupStore()
 const group = computed(() =>
-  props.post.type === 'group_post' ? getGroupById(props.post.type_data.group_id) : null,
+  props.post.type === 'group_post' ? groupStore.groups.find((g) => g.id === props.post.type_data.group_id) : null,
 )
 const isMember = computed(() =>
   group.value ? store.isGroupJoined(group.value.id) : false,

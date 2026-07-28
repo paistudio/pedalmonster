@@ -6,8 +6,7 @@ import PhotoGallery from '../components/PhotoGallery.vue'
 import CommentsSheet from '../components/CommentsSheet.vue'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useUserLocation } from '../composables/useUserLocation'
-import { useCommentStore } from '../composables/useCommentStore'
-import { currentUser } from '../mocks'
+import { useAuth } from '../composables/useAuth'
 import { formatPrice } from '../utils/formatters'
 import { distanceBetweenCities, formatDistance } from '../utils/geo'
 
@@ -15,11 +14,11 @@ const route = useRoute()
 const router = useRouter()
 const store = useFeedStore()
 const { state: locationState } = useUserLocation()
-const commentStore = useCommentStore()
+const { state: authState } = useAuth()
 const isCommentsSheetOpen = ref(false)
 
 const post = computed(() => store.posts.find((p) => p.id === route.params.id && p.type === 'listing'))
-const isOwnListing = computed(() => post.value?.user_id === currentUser.id)
+const isOwnListing = computed(() => post.value?.user_id === authState.currentUser?.id)
 const distanceLabel = computed(() => {
   if (!post.value?.location_city_id || !locationState.resolvedCityId) return ''
   return formatDistance(distanceBetweenCities(locationState.resolvedCityId, post.value.location_city_id))
@@ -40,7 +39,7 @@ function openSellerProfile() {
   router.push(`/profile/${post.value.user_id}`)
 }
 
-const commentCount = computed(() => (post.value ? commentStore.commentCountFor(post.value.id) : 0))
+const commentCount = computed(() => post.value?.comment_count ?? 0)
 </script>
 
 <template>

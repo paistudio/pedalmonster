@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import BottomSheet from '../components/BottomSheet.vue'
@@ -7,12 +7,13 @@ import PostCard from '../components/PostCard.vue'
 import UserListSheet from '../components/UserListSheet.vue'
 import { useGroupStore } from '../composables/useGroupStore'
 import { useFeedStore } from '../composables/useFeedStore'
-import { currentUser, getUserById } from '../mocks'
+import { useAuth } from '../composables/useAuth'
 
 const route = useRoute()
 const router = useRouter()
 const groupStore = useGroupStore()
 const feedStore = useFeedStore()
+const { state: authState } = useAuth()
 const isMembersSheetOpen = ref(false)
 const isMenuOpen = ref(false)
 const isDeleteConfirmOpen = ref(false)
@@ -20,11 +21,16 @@ const isDeleteConfirmOpen = ref(false)
 const group = computed(() => groupStore.groups.find((g) => g.id === route.params.id))
 const isJoined = computed(() => (group.value ? groupStore.isJoined(group.value.id) : false))
 const isOwner = computed(() => (group.value ? groupStore.isOwner(group.value.id) : false))
-const isBlocked = computed(() => (group.value ? groupStore.isBlocked(group.value.id, currentUser.id) : false))
-const memberIds = computed(() => (group.value ? groupStore.membersOf(group.value.id) : []))
-const memberPreview = computed(() =>
-  memberIds.value.slice(0, 5).map((id) => getUserById(id)).filter(Boolean),
+const isBlocked = computed(() =>
+  group.value ? groupStore.isBlocked(group.value.id, authState.currentUser?.id) : false,
 )
+const members = computed(() => (group.value ? groupStore.membersOf(group.value.id) : []))
+const memberPreview = computed(() => members.value.slice(0, 5))
+
+watchEffect(() => {
+  if (group.value) groupStore.loadMembers(group.value.id)
+})
+
 const groupPosts = computed(() =>
   feedStore.posts.filter(
     (post) => post.type === 'group_post' && post.type_data.group_id === group.value?.id,
@@ -107,7 +113,7 @@ function blockMember(userId) {
 
     <UserListSheet
       :open="isMembersSheetOpen"
-      :user-ids="memberIds"
+      :users="members"
       :title="`${group.member_count} Members`"
       empty-text="No members yet."
       :can-moderate="isOwner"

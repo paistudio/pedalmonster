@@ -6,7 +6,9 @@ import CreationHeader from '../../components/create/CreationHeader.vue'
 import PhotoPicker from '../../components/create/PhotoPicker.vue'
 import LocationPickerSheet from '../../components/LocationPickerSheet.vue'
 import { useFeedStore } from '../../composables/useFeedStore'
-import { addPoints, getCityById } from '../../mocks'
+import { useCities, getCityById } from '../../composables/useCities'
+
+useCities()
 
 const router = useRouter()
 const store = useFeedStore()
@@ -22,6 +24,7 @@ const price = ref('')
 const locationCityId = ref(null)
 const isLocationPickerOpen = ref(false)
 const description = ref('')
+const isUploading = ref(false)
 
 const errors = reactive({})
 
@@ -60,9 +63,12 @@ function back() {
   }
 }
 
-function submit() {
+async function submit() {
+  if (isUploading.value) return
   if (!validateStep3()) return
-  store.createPost({
+  // Activity points (+2) are awarded server-side by a DB trigger on insert, not here — see
+  // docs/19-supabase-only-backend-plan.md.
+  await store.createPost({
     type: 'listing',
     title: title.value.trim(),
     description: description.value.trim(),
@@ -76,7 +82,6 @@ function submit() {
       status: 'available',
     },
   })
-  addPoints(2)
   router.push('/')
 }
 </script>
@@ -86,7 +91,7 @@ function submit() {
     <CreationHeader title="Sell" :step="step" :total-steps="TOTAL_STEPS" />
 
     <div v-if="step === 1" class="form-step">
-      <PhotoPicker v-model="photos" :max="5" />
+      <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="5" folder="listings" />
       <p v-if="errors.photos" class="field-error">{{ errors.photos }}</p>
     </div>
 
@@ -189,7 +194,7 @@ function submit() {
         {{ step === 1 ? 'Cancel' : 'Back' }}
       </button>
       <button v-if="step < TOTAL_STEPS" class="btn btn-primary" @click="next">Next</button>
-      <button v-else class="btn btn-primary" @click="submit">Post Listing</button>
+      <button v-else class="btn btn-primary" :disabled="isUploading" @click="submit">Post Listing</button>
     </footer>
 
     <LocationPickerSheet
