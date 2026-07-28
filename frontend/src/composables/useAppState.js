@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
@@ -19,6 +19,26 @@ const state = reactive({
 })
 
 const { state: authState } = useAuth()
+
+// All the `*Loaded` flags above are "fetch once" guards on a module-level singleton, which
+// otherwise stays populated for whoever was logged in *first* in this browser tab — switching
+// accounts without a full page reload (logout then a different login) would silently keep
+// showing the previous user's cached liked/tags/notifications/chats forever. Reset on every
+// user change (including to/from null) so the next ensure*Loaded() call actually refetches.
+watch(
+  () => authState.currentUser?.id,
+  () => {
+    state.followedTags = []
+    state.followedTagsLoaded = false
+    state.likedPostIds = []
+    state.likedLoaded = false
+    state.notifications = []
+    state.notificationsLoaded = false
+    state.chats = []
+    state.chatsLoaded = false
+    state.unreadInbox = false
+  },
+)
 
 // Loads once per login — which posts the current user has already liked, so isPostLiked
 // works without a network round trip per post.
