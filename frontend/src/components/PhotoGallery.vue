@@ -1,16 +1,26 @@
 <script setup>
-import { nextTick, ref } from 'vue'
+import { nextTick, reactive, ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useUpload } from '../composables/useUpload'
 
 const props = defineProps({
   images: { type: Array, required: true },
   thumbnails: { type: Boolean, default: false },
 })
 
+const { thumbUrl } = useUpload()
 const scrollerRef = ref(null)
 const fullscreenScrollerRef = ref(null)
 const activeIndex = ref(0)
 const isFullscreen = ref(false)
+
+// Compressed thumbnails only exist for photos uploaded after this feature landed — older
+// posts' originals have no `thumb/` sibling and would 404. Fall back to the full-size image
+// for exactly the src(s) that fail, rather than assuming thumbnails always exist.
+const thumbFailed = reactive(new Set())
+function cardSrc(src) {
+  return thumbFailed.has(src) ? src : thumbUrl(src)
+}
 
 function onScroll() {
   const el = scrollerRef.value
@@ -44,10 +54,11 @@ function closeFullscreen() {
       <img
         v-for="(src, i) in props.images"
         :key="i"
-        :src="src"
+        :src="cardSrc(src)"
         class="gallery-image"
         loading="lazy"
         alt=""
+        @error="thumbFailed.add(src)"
       />
     </div>
     <div v-if="props.images.length > 1" class="dots">
@@ -68,7 +79,7 @@ function closeFullscreen() {
       :class="{ 'thumbnail--active': i === activeIndex }"
       @click="openFullscreen(i)"
     >
-      <img :src="src" loading="lazy" alt="" />
+      <img :src="cardSrc(src)" loading="lazy" alt="" @error="thumbFailed.add(src)" />
     </button>
   </div>
 

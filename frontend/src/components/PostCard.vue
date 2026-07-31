@@ -9,6 +9,7 @@ import { useAppState } from '../composables/useAppState'
 import { useGroupStore } from '../composables/useGroupStore'
 import { formatRelativeTime, formatPrice } from '../utils/formatters'
 import { avatarSrc } from '../utils/avatar'
+import { useUpload } from '../composables/useUpload'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -19,8 +20,10 @@ const props = defineProps({
 const router = useRouter()
 const store = useFeedStore()
 const { isPostLiked, toggleLike } = useAppState()
+const { thumbUrl } = useUpload()
 const expanded = ref(false)
 const isCommentsSheetOpen = ref(false)
+const gridThumbFailed = ref(false)
 const liked = computed(() => isPostLiked(props.post.id))
 // comment_count is maintained by a DB trigger, see docs/19-supabase-only-backend-plan.md —
 // reading it straight off the post avoids needing every comment thread loaded just to count.
@@ -81,10 +84,11 @@ const isMember = computed(() =>
     <div class="grid-media">
       <img
         v-if="post.media_urls.length"
-        :src="post.media_urls[0]"
+        :src="gridThumbFailed ? post.media_urls[0] : thumbUrl(post.media_urls[0])"
         class="grid-image"
         loading="lazy"
         alt=""
+        @error="gridThumbFailed = true"
       />
       <span v-if="post.type_data?.status === 'sold'" class="grid-sold">Sold</span>
       <button

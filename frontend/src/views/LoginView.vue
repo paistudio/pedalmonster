@@ -2,6 +2,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import logoIcon from '../assets/pedalmonster-logo-icon.svg'
 
 const router = useRouter()
 const { signIn } = useAuth()
@@ -34,9 +35,14 @@ async function submit() {
 
 <template>
   <div class="auth-screen">
+    <video class="auth-bg-video" autoplay muted loop playsinline>
+      <source src="/videos/login-bg.mp4" type="video/mp4" />
+    </video>
+    <div class="auth-bg-overlay"></div>
     <div class="auth-body">
-      <h1 class="auth-title">Pedal Monster</h1>
-      <p class="auth-subtitle">Log in to continue</p>
+      <img class="auth-logo" :src="logoIcon" alt="Pedal Monster" />
+      <h1 class="auth-title">Welcome Back</h1>
+      <p class="auth-subtitle">Bike community platform to buy, sell, and connect with riders near you.</p>
 
       <div class="field">
         <label class="field-label">Email</label>
@@ -79,12 +85,33 @@ async function submit() {
 
 <style scoped>
 .auth-screen {
+  position: relative;
   height: 100%;
   display: flex;
   align-items: center;
+  overflow: hidden;
+  background: #0a0a0a;
+}
+
+.auth-bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.auth-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.72);
+  z-index: 1;
 }
 
 .auth-body {
+  position: relative;
+  z-index: 2;
   width: 100%;
   padding: 24px;
   display: flex;
@@ -92,7 +119,15 @@ async function submit() {
   gap: 16px;
 }
 
+.auth-logo {
+  width: 128px;
+  height: 128px;
+  margin: 0 auto;
+  display: block;
+}
+
 .auth-title {
+  font-family: 'Stoke', var(--font-display);
   font-size: 22px;
   margin: 0;
   text-align: center;

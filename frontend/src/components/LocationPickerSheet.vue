@@ -11,7 +11,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'update:modelValue'])
 
-const { state: citiesState } = useCities()
+const { state: citiesState, ensureLoaded: ensureCitiesLoaded } = useCities()
 const query = ref('')
 const status = ref('idle') // idle | requesting | denied | unsupported | error
 
@@ -39,6 +39,11 @@ function selectCity(cityId) {
 async function useGpsLocation() {
   status.value = 'requesting'
   try {
+    // Real bug: cities load async from Supabase — tapping this before that fetch resolves left
+    // nearestCity() searching an empty list, which always failed with a misleading "Couldn't
+    // get your location" even though GPS itself worked fine. Await it explicitly so a fast tap
+    // right after opening the sheet can't race it.
+    await ensureCitiesLoaded()
     const city = await requestGeolocationCity(citiesState.cities)
     status.value = 'idle'
     selectCity(city.id)

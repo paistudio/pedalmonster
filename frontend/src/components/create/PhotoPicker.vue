@@ -19,7 +19,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'update:uploading'])
 
-const { uploadFile } = useUpload()
+const { uploadFile, thumbUrl } = useUpload()
 const cameraInput = ref(null)
 const galleryInput = ref(null)
 const pendingCount = ref(0)
@@ -104,7 +104,7 @@ defineExpose({ uploadPending })
   <div class="photo-picker">
     <div class="thumbs">
       <div v-for="(src, i) in modelValue" :key="src" class="thumb">
-        <img :src="src" alt="" />
+        <img :src="thumbUrl(src)" alt="" />
         <button class="remove-btn" aria-label="Remove photo" @click="removePhoto(i)">
           <Icon icon="iconoir:xmark" width="12" height="12" />
         </button>

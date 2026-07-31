@@ -90,12 +90,12 @@ async function submit() {
   <div class="form-screen">
     <CreationHeader title="Sell" :step="step" :total-steps="TOTAL_STEPS" />
 
-    <div v-if="step === 1" class="form-step">
+    <div v-show="step === 1" class="form-step">
       <PhotoPicker v-model="photos" v-model:uploading="isUploading" :max="5" folder="listings" />
       <p v-if="errors.photos" class="field-error">{{ errors.photos }}</p>
     </div>
 
-    <div v-else-if="step === 2" class="form-step">
+    <div v-show="step === 2" class="form-step">
       <div class="field">
         <label class="field-label">Title</label>
         <input v-model="title" class="field-input" :class="{ 'field-input--error': errors.title }" placeholder="e.g. Polygon Xtrada 7 MTB" />
@@ -176,7 +176,7 @@ async function submit() {
       </div>
     </div>
 
-    <div v-else class="form-step">
+    <div v-show="step === 3" class="form-step">
       <div class="field">
         <label class="field-label">Description</label>
         <textarea

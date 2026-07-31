@@ -23,7 +23,7 @@ function ensureLoaded() {
 
 export function useCities() {
   ensureLoaded()
-  return { state }
+  return { state, ensureLoaded }
 }
 
 export function getCityById(id) {

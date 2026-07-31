@@ -1,4 +1,4 @@
-import { getCityById } from '../mocks/cities'
+import { getCityById } from '../composables/useCities'
 
 const EARTH_RADIUS_KM = 6371
 
@@ -62,6 +62,12 @@ export function requestGeolocationCity(cities) {
       (error) => {
         reject({ code: error.code === error.PERMISSION_DENIED ? 'denied' : 'error' })
       },
+      // Without an explicit timeout, a weak/no GPS fix (common indoors) leaves the browser's
+      // default behavior undefined — some never call either callback, which reads as the
+      // button being stuck on "Locating..." forever. 10s is generous for a first fix without
+      // hanging indefinitely; maximumAge lets a very recent cached fix resolve instantly
+      // instead of forcing a fresh one every time the sheet opens.
+      { timeout: 10000, maximumAge: 60000 },
     )
   })
 }

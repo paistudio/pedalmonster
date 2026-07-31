@@ -1,11 +1,12 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { supabase } from '../lib/supabase'
 import { useFeedStore } from '../composables/useFeedStore'
 import { useChatStore } from '../composables/useChatStore'
 import { useAuth } from '../composables/useAuth'
+import { useUpload } from '../composables/useUpload'
 import { formatPrice } from '../utils/formatters'
 import { avatarSrc } from '../utils/avatar'
 import PhotoPicker from '../components/create/PhotoPicker.vue'
@@ -14,6 +15,13 @@ const route = useRoute()
 const router = useRouter()
 const feedStore = useFeedStore()
 const { state: authState } = useAuth()
+const { thumbUrl } = useUpload()
+// See PhotoGallery.vue's identical fallback — messages/listings attached before this feature
+// landed have no `thumb/` sibling for their photos.
+const thumbFailed = reactive(new Set())
+function mediaSrc(src) {
+  return thumbFailed.has(src) ? src : thumbUrl(src)
+}
 
 const otherUser = ref(null)
 supabase
@@ -76,9 +84,10 @@ function send() {
           >
             <img
               v-if="listingFor(message).media_urls?.[0]"
-              :src="listingFor(message).media_urls[0]"
+              :src="mediaSrc(listingFor(message).media_urls[0])"
               class="product-card__thumb"
               alt=""
+              @error="thumbFailed.add(listingFor(message).media_urls[0])"
             />
             <div class="product-card__meta">
               <span class="product-card__title">{{ listingFor(message).title }}</span>
@@ -92,7 +101,7 @@ function send() {
           >
             <div class="bubble" :class="{ 'bubble--media': message.media_urls?.length && !message.body }">
               <div v-if="message.media_urls?.length" class="bubble-media">
-                <img v-for="src in message.media_urls" :key="src" :src="src" alt="" />
+                <img v-for="src in message.media_urls" :key="src" :src="mediaSrc(src)" alt="" @error="thumbFailed.add(src)" />
               </div>
               <span v-if="message.body">{{ message.body }}</span>
             </div>

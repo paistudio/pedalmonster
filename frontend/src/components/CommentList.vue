@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useCommentStore } from '../composables/useCommentStore'
+import { useUpload } from '../composables/useUpload'
 import { formatRelativeTime } from '../utils/formatters'
 import { avatarSrc } from '../utils/avatar'
 
@@ -12,6 +13,13 @@ const props = defineProps({
 })
 
 const commentStore = useCommentStore()
+const { thumbUrl } = useUpload()
+// See PhotoGallery.vue's identical fallback — comments attached before this feature landed
+// have no `thumb/` sibling for their photos.
+const thumbFailed = reactive(new Set())
+function mediaSrc(src) {
+  return thumbFailed.has(src) ? src : thumbUrl(src)
+}
 const showAll = ref(false)
 const visibleComments = computed(() =>
   showAll.value ? props.comments : props.comments.slice(0, PREVIEW_COUNT),
@@ -91,7 +99,7 @@ function confirmDelete(comment) {
           </p>
 
           <div v-if="comment.media_urls?.length" class="comment-media">
-            <img v-for="src in comment.media_urls" :key="src" :src="src" alt="" />
+            <img v-for="src in comment.media_urls" :key="src" :src="mediaSrc(src)" alt="" @error="thumbFailed.add(src)" />
           </div>
 
           <div class="comment-actions">

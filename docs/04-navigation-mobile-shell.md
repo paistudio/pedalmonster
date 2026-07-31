@@ -23,6 +23,7 @@ Location/"Nearby" also does NOT get its own nav slot — per `17-regional-locati
 ## App Shell Requirements
 - Top app bar centre slot: the `pedalmonster_logo_text.svg` wordmark (white, ~20px tall), not the "Pedal Monster" text string — see `12-top-app-shell-and-menu.md` for the rest of the top bar.
 - Single column layout, no sidebars, no multi-column grids — mobile viewport only (~375–430px design target)
+- Pinch-zoom, double-tap-to-zoom, and horizontal scroll/bounce are disabled app-wide (`user-scalable=no`/`maximum-scale=1.0` in `index.html`'s viewport meta, plus `overflow-x: hidden` + `touch-action: pan-y` on `html`/`body` in `style.css` as a backstop — some browsers, notably iOS Safari, ignore the meta tag's `user-scalable=no` on its own) — this is a native-feeling single-purpose app, not a page meant to be zoomed, and accidental pinch-zoom on tap was a reported annoyance. Vertical scrolling and pull-to-refresh are unaffected.
 - No hover states needed anywhere — design for tap/press states only
 - Bottom sheets preferred over modals/dialogs for: filters, post creation, chat actions
 - Pull-to-refresh on Home feed
@@ -30,7 +31,8 @@ Location/"Nearby" also does NOT get its own nav slot — per `17-regional-locati
 
 ## PWA Setup
 - `manifest.json`: app name, icons (multiple sizes), theme color and background color both `#0A0A0A` (the near-black canvas — the old brown/off-white pairing from `01-brand-style-guide.md` is superseded by `design.md`), `display: standalone`
-- Favicon (`frontend/public/favicon.svg`) and every home-screen/install icon (`frontend/public/icons/icon-{180,192,512}.png`, referenced by the `apple-touch-icon` link tag and the PWA manifest respectively) are the `pedalmonster-logo-icon.svg` mark centered on a `#0A0A0A` square — same mark as the app preloader (`16-app-preloader-splash.md`) and the avatar placeholder (`design.md`'s Avatar Placeholder). The PNGs were rasterized from that same source at each exact pixel size, not scaled from one single size, so they stay crisp at iOS's home-screen icon size in particular.
+- **Favicon** (`frontend/public/favicon.svg`) uses the `pedalmonster_logo_text.svg` "PM" lettermark centered on a `#0A0A0A` square — deliberately different from the app/home-screen icon below, per an explicit request to distinguish the browser-tab glyph from the install icon.
+- **Home-screen/install icons** (`frontend/public/icons/icon-{180,192,512}.png`, referenced by the `apple-touch-icon` link tag and the PWA manifest respectively) use the `pedalmonster-logo-icon.svg` mark centered on a `#0A0A0A` square — same mark as the app preloader (`16-app-preloader-splash.md`) and the avatar placeholder (`design.md`'s Avatar Placeholder). The PNGs were rasterized from that same source at each exact pixel size, not scaled from one single size, so they stay crisp at iOS's home-screen icon size in particular.
 - Service worker: cache app shell + static assets for offline resilience (useful since this is a community used outdoors/on rides where connectivity may be spotty)
 - "Add to Home Screen" prompt handling
 - Splash/loading screen: the OS-level PWA splash comes from the manifest above, but the app also has its own in-page logo preloader that covers every load and refresh (browser tab included) — see `16-app-preloader-splash.md`. Don't build a second loading overlay.
